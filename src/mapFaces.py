@@ -31,9 +31,7 @@ def read_csv(file_path: str):
     return data
 
 
-def get_player_mapping(
-    source_csv: str, destination_csv: str, folder_path
-) -> PlayerMappingDict:
+def get_player_mapping(source_csv: str, destination_csv: str) -> PlayerMappingDict:
     source_data = read_csv(source_csv)
     destination_data = read_csv(destination_csv)
     combined_dict = {}
@@ -67,5 +65,5 @@ if __name__ == "__main__":
     src_folder_path = "BPB Patch Adria Edition 2023 Faces/livecpk/Faces"
     dest_folder_path = "UML/livecpk/VRED_Faces"
 
-    mapping = get_player_mapping(source_csv, destination_csv, src_folder_path)
+    mapping = get_player_mapping(source_csv, destination_csv)
     update_folders(src_folder_path, dest_folder_path, mapping)
