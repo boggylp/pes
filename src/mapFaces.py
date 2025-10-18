@@ -48,20 +48,25 @@ def get_player_mapping(source_csv: str, destination_csv: str) -> list[PlayerMapp
     destination_data = read_csv(destination_csv)
     player_mapping = []
 
-    # Use a set for O(1) lookup and removal
-    available_names = set(destination_data.keys())
+    # Pre-normalize all destination names once
+    normalized_to_original = {normalize(name): name for name in destination_data.keys()}
+    available_normalized = set(normalized_to_original.keys())
+
+    logger.info(f"Pre-normalized {len(normalized_to_original)} destination players")
 
     for player_name in source_data.keys():
-        candidate_name = get_best_match(player_name, available_names)
-        if candidate_name:
+        candidate_normalized = get_best_match(player_name, available_normalized)
+        if candidate_normalized:
+            # Map back to original name
+            candidate_original = normalized_to_original[candidate_normalized]
             player_mapping.append(
                 PlayerMapping(
-                    source_data[player_name], destination_data[candidate_name]
+                    source_data[player_name], destination_data[candidate_original]
                 )
             )
-            logger.debug(f"Matched '{player_name}' -> '{candidate_name}'")
+            logger.debug(f"Matched '{player_name}' -> '{candidate_original}'")
             # Remove matched name from available pool
-            available_names.discard(candidate_name)
+            available_normalized.discard(candidate_normalized)
         else:
             logger.debug(f"No match found for player: {player_name}")
 
@@ -130,51 +135,49 @@ def normalize(fullName: str):
 
 
 def get_best_match(target_name: str, candidate_names: set[str]):
-    """Find best matching name from candidates with early filtering. Returns closest match or None."""
-    # Early return for exact match
-    if target_name in candidate_names:
-        return target_name
-
-    # Normalize target once (cache it)
+    """Find best matching name from pre-normalized candidates. Returns normalized match or None."""
+    # Normalize target once
     target_normalized = normalize(target_name)
-    target_parts = target_normalized.split()
 
-    # Extract surname for quick filtering
+    # Quick exact match
+    if target_normalized in candidate_names:
+        return target_normalized
+
+    target_parts = target_normalized.split()
     target_surname = target_parts[-1] if target_parts else ""
 
     best_match = None
     best_score = -1
 
-    for candidate in candidate_names:
-        # Quick checks before expensive normalization
-
-        # 1. Filter by approximate length (allow some flexibility)
-        if abs(len(candidate) - len(target_name)) > 10:
+    for candidate_normalized in candidate_names:
+        # Quick filters on normalized strings
+        if abs(len(candidate_normalized) - len(target_normalized)) > 10:
             continue
 
-        # 2. Check if surnames share first character (cheap check)
-        if target_surname and not any(
-            word.lower().startswith(target_surname[0]) for word in candidate.split()
-        ):
-            continue
+        # Check if surname starts with same character
+        if target_surname:
+            candidate_parts = candidate_normalized.split()
+            if not candidate_parts or not candidate_parts[-1].startswith(
+                target_surname[0]
+            ):
+                continue
 
-        # Now do the expensive matching
-        score = calculate_name_match_score(target_parts, target_normalized, candidate)
+        # Calculate score using pre-normalized candidate
+        score = calculate_name_match_score(
+            target_parts, target_normalized, candidate_normalized
+        )
         if score is not None and score > best_score:
             best_score = score
-            best_match = candidate
+            best_match = candidate_normalized
 
     return best_match
 
 
 def calculate_name_match_score(
-    target_parts: list[str], target_normalized: str, candidate_name: str
+    target_parts: list[str], target_normalized: str, candidate_normalized: str
 ):
-    """Optimized matching that accepts pre-normalized target. Returns None if no match."""
-    # Normalize candidate
-    candidate_normalized = normalize(candidate_name)
-
-    # Quick exact match after normalization
+    """Calculate match score using pre-normalized strings. Returns None if no match."""
+    # Quick exact match check
     if target_normalized == candidate_normalized:
         return 1000  # Perfect match gets highest score
 
