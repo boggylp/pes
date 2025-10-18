@@ -5,6 +5,8 @@ from pathlib import Path
 import shutil
 import unicodedata
 import logging
+import argparse
+
 
 logging.basicConfig(
     level=logging.INFO,
@@ -12,6 +14,7 @@ logging.basicConfig(
     datefmt="%Y-%m-%d %H:%M:%S",
 )
 logger = logging.getLogger(__name__)
+
 
 DELIMITER = ";"
 ENCODING = "utf-8-sig"
@@ -30,6 +33,37 @@ class PlayerMapping:
     dest_player_id: str
 
 
+def parse_arguments():
+    parser = argparse.ArgumentParser(
+        description="Player Face Mapping Tool - Map player faces between game versions"
+    )
+
+    parser.add_argument(
+        "--source-csv",
+        help="Source CSV file with player names and IDs (optional - uses folder names if not provided)",
+    )
+
+    parser.add_argument(
+        "--destination-csv",
+        required=True,
+        help="Destination CSV file with player names and IDs (always required)",
+    )
+
+    parser.add_argument(
+        "--source-folder",
+        required=True,
+        help="Source folder containing player face directories",
+    )
+
+    parser.add_argument(
+        "--dest-folder",
+        required=True,
+        help="Destination folder for mapped player faces",
+    )
+
+    return parser.parse_args()
+
+
 def read_csv(file_path: str) -> list[Player]:
     logger.info(f"Reading CSV file: {file_path}")
     data: list[Player] = []
@@ -45,6 +79,42 @@ def read_csv(file_path: str) -> list[Player]:
         logger.error(f"Error reading CSV file {file_path}: {e}")
         raise
     return data
+
+
+def read_folders(folder_path: str) -> list[Player]:
+    """Read folder names as player data, using folder name as both ID and name."""
+    logger.info(f"Reading player folders from: {folder_path}")
+    data: list[Player] = []
+
+    try:
+        folder_path_obj = Path(folder_path)
+        if not folder_path_obj.exists():
+            logger.error(f"Folder does not exist: {folder_path}")
+            raise FileNotFoundError(f"Folder does not exist: {folder_path}")
+
+        for folder in sorted(folder_path_obj.iterdir()):
+            if folder.is_dir():
+                # Use folder name as both player name and ID
+                player_name = folder.name
+                player_id = folder.name
+                data.append(Player(player_id, player_name))
+
+        logger.info(f"Successfully read {len(data)} player folders")
+    except Exception as e:
+        logger.error(f"Error reading folders from {folder_path}: {e}")
+        raise
+
+    return data
+
+
+def get_source_data(source_csv: str, source_folder: str) -> list[Player]:
+    """Get source player data from CSV or folder names."""
+    if source_csv and Path(source_csv).exists():
+        logger.info(f"Using CSV mode - reading from {source_csv}")
+        return read_csv(source_csv)
+    else:
+        logger.info(f"Using folder mode - reading folder names from {source_folder}")
+        return read_folders(source_folder)
 
 
 def get_player_mapping(
@@ -67,7 +137,6 @@ def get_player_mapping(
             # Map back to original name
             candidate_original = normalized_to_original[candidate_normalized]
             player_mapping.append(PlayerMapping(player.id, candidate_original.id))
-            logger.debug(f"Matched '{player.name}' -> '{candidate_original}'")
             # Remove matched name from available pool
             available_normalized.discard(candidate_normalized)
         else:
@@ -216,18 +285,14 @@ def calculate_name_match_score(
 
 
 if __name__ == "__main__":
+    args = parse_arguments()
     logger.info("=== Starting Player Face Mapping Tool ===")
 
-    source_csv = "samples/BPB-2023-players.csv"
-    destination_csv = "samples/FL26_players.csv"
-    src_folder_path = "samples"
-    dest_folder_path = "result/root"
-
     try:
-        source_data = read_csv(source_csv)
-        destination_data = read_csv(destination_csv)
+        source_data = get_source_data(args.source_csv, args.source_folder)
+        destination_data = read_csv(args.destination_csv)
         mapping = get_player_mapping(source_data, destination_data)
-        update_faces_structure(src_folder_path, f"{dest_folder_path}", mapping)
+        update_faces_structure(args.source_folder, args.dest_folder, mapping)
         logger.info("=== Finished processing successfully ===")
     except Exception as e:
         logger.critical(f"Fatal error during processing: {e}", exc_info=True)
