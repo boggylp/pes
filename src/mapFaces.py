@@ -6,7 +6,7 @@ import unicodedata
 import logging
 
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
 )
@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 
 DELIMITER = ";"
 ENCODING = "utf-8-sig"
+FACE_PATH = "Asset/model/character/face/real"
 
 
 class PlayerMapping:
@@ -55,6 +56,8 @@ def get_player_mapping(source_csv: str, destination_csv: str) -> list[PlayerMapp
     logger.info(f"Pre-normalized {len(normalized_to_original)} destination players")
 
     for player_name in source_data.keys():
+        if len(available_normalized) == 0:
+            break
         candidate_normalized = get_best_match(player_name, available_normalized)
         if candidate_normalized:
             # Map back to original name
@@ -80,12 +83,13 @@ def update_faces_structure(
     logger.info(
         f"Updating faces structure from {src_folder_path} to {dest_folder_path}"
     )
-    facePath = "Asset/model/character/face/real"
     processed = 0
 
     for item in mapping:
-        src_path = f"{src_folder_path}/{facePath}/{item.src_player_id}"
-        dest_path = f"{dest_folder_path}/{facePath}/{item.dest_player_id}"
+        # src_path = f"{src_folder_path}/{FACE_PATH}/{item.src_player_id}"
+        src_path = f"{src_folder_path}/{item.src_player_id}"
+        # dest_path = f"{dest_folder_path}/{FACE_PATH}/{item.dest_player_id}"
+        dest_path = f"{dest_folder_path}/{item.dest_player_id}"
 
         if not os.path.exists(src_path):
             logger.warning(f"Source path does not exist: {src_path}")
@@ -221,7 +225,7 @@ if __name__ == "__main__":
 
     try:
         mapping = get_player_mapping(source_csv, destination_csv)
-        update_faces_structure(src_folder_path, f"result/{dest_folder_path}", mapping)
+        update_faces_structure(src_folder_path, f"{dest_folder_path}", mapping)
         logger.info("=== Finished processing successfully ===")
     except Exception as e:
         logger.critical(f"Fatal error during processing: {e}", exc_info=True)
