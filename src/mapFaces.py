@@ -1,7 +1,11 @@
 import csv
 import os
+from pathlib import Path
 import shutil
-from typing import Dict
+import unicodedata
+
+DELIMITER = ";"
+ENCODING = "utf-8-sig"
 
 
 class PlayerMapping:
@@ -13,43 +17,39 @@ class PlayerMapping:
         self.dest_player_id = dest_player_id
 
 
-PlayerMappingDict = Dict[str, PlayerMapping]
-
-
-def remove_whitespace_and_lower(text: str) -> str:
-    return text.replace(" ", "").lower()
-
-
 def read_csv(file_path: str):
     data = {}
-    with open(file_path, mode="r", encoding="utf-8-sig") as file:
-        reader = csv.DictReader(file, delimiter=";")
+    with open(file_path, mode="r", encoding=ENCODING) as file:
+        reader = csv.DictReader(file, delimiter=DELIMITER)
         for row in reader:
             player_id = row["Id"]
             player_name = row["Name"]
-            data[remove_whitespace_and_lower(player_name)] = player_id
+            data[(player_name)] = player_id
     return data
 
 
-def get_player_mapping(source_csv: str, destination_csv: str) -> PlayerMappingDict:
+def get_player_mapping(source_csv: str, destination_csv: str) -> list[PlayerMapping]:
     source_data = read_csv(source_csv)
     destination_data = read_csv(destination_csv)
-    combined_dict = {}
+    player_mapping = []
+    destination_names = list(destination_data.keys())
 
     for player_name in source_data.keys():
-        if player_name in destination_data.keys():
-            combined_dict[player_name] = PlayerMapping(
-                source_data[player_name], destination_data[player_name]
+        candidate_name = get_best_match(player_name, destination_names)
+        if candidate_name:
+            player_mapping.append(
+                PlayerMapping(
+                    source_data[player_name], destination_data[candidate_name]
+                )
             )
-    return combined_dict
+    return player_mapping
 
 
-def update_folders(
-    src_folder_path: str, dest_folder_path: str, mapping: PlayerMappingDict
+def update_faces_structure(
+    src_folder_path: str, dest_folder_path: str, mapping: list[PlayerMapping]
 ):
     facePath = "Asset/model/character/face/real"
-    for key in mapping:
-        item = mapping[key]
+    for item in mapping:
         src_path = f"{src_folder_path}/{facePath}/{item.src_player_id}"
         dest_path = f"{dest_folder_path}/{facePath}/{item.dest_player_id}"
         if not os.path.exists(src_path):
@@ -57,13 +57,89 @@ def update_folders(
         if not os.path.exists(dest_path):
             os.makedirs(dest_path)
         shutil.copytree(src_path, dest_path, dirs_exist_ok=True)
+        hex_replace(
+            f"{dest_path}/#Win/face.fpk", item.src_player_id, item.dest_player_id
+        )
+
+
+def hex_replace(file_path, old_id, new_id):
+    if not Path(file_path).exists():
+        return
+
+    with open(file_path, "rb") as f:
+        data = f.read()
+
+    data = data.replace(old_id.encode(), new_id.encode())
+
+    with open(file_path, "wb") as f:
+        f.write(data)
+
+
+def normalize(fullName: str):
+    """Remove accents and non-alphanumeric characters (keep spaces)"""
+    nfd = unicodedata.normalize("NFD", fullName)
+    # Remove accents and keep only alphanumeric + spaces
+    cleaned = "".join(
+        character
+        for character in nfd
+        if unicodedata.category(character) != "Mn"
+        and (character.isalnum() or character.isspace())
+    )
+    return cleaned.casefold()
+
+
+def calculate_name_match_score(name1: str, name2: str):
+    """Calculate match score. Higher is better. Returns None if no match."""
+    parts1 = normalize(name1).split()
+    parts2 = normalize(name2).split()
+
+    if len(parts1) != len(parts2):
+        return None
+
+    if len(parts1) == 1:
+        return 100 if parts1[0] == parts2[0] else None
+
+    # Surname must match exactly
+    if parts1[-1] != parts2[-1]:
+        return None
+
+    score = 0
+
+    # Check all first names
+    for p1, p2 in zip(parts1[:-1], parts2[:-1]):
+        if len(p1) == 1 or len(p2) == 1:
+            if p1[0] != p2[0]:
+                return None
+            score += 1  # Lower score for initial match
+        else:
+            if p1 != p2:
+                return None
+            score += 10  # Higher score for full name match
+
+    score += 50  # Bonus for surname match
+    return score
+
+
+def get_best_match(target_name: str, candidate_names: list[str]):
+    """Find best matching name from candidates. Returns closest match or None."""
+    best_match = None
+    best_score = -1
+
+    for candidate in candidate_names:
+        score = calculate_name_match_score(target_name, candidate)
+        if score is not None and score > best_score:
+            best_score = score
+            best_match = candidate
+
+    return best_match
 
 
 if __name__ == "__main__":
     source_csv = "samples/BPB-2023-players.csv"
-    destination_csv = "samples/UML Player IDs.csv"
-    src_folder_path = "BPB Patch Adria Edition 2023 Faces/livecpk/Faces"
-    dest_folder_path = "UML/livecpk/VRED_Faces"
+    destination_csv = "samples/FL26_players.csv"
+    src_folder_path = "samples"
+    dest_folder_path = "livecpk/root"
 
     mapping = get_player_mapping(source_csv, destination_csv)
-    update_folders(src_folder_path, dest_folder_path, mapping)
+    update_faces_structure(src_folder_path, f"result/{dest_folder_path}", mapping)
+    print("Finished processing")
