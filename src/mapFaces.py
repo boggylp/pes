@@ -47,10 +47,12 @@ def get_player_mapping(source_csv: str, destination_csv: str) -> list[PlayerMapp
     source_data = read_csv(source_csv)
     destination_data = read_csv(destination_csv)
     player_mapping = []
-    destination_names = list(destination_data.keys())
+
+    # Use a set for O(1) lookup and removal
+    available_names = set(destination_data.keys())
 
     for player_name in source_data.keys():
-        candidate_name = get_best_match(player_name, destination_names)
+        candidate_name = get_best_match(player_name, available_names)
         if candidate_name:
             player_mapping.append(
                 PlayerMapping(
@@ -58,6 +60,8 @@ def get_player_mapping(source_csv: str, destination_csv: str) -> list[PlayerMapp
                 )
             )
             logger.debug(f"Matched '{player_name}' -> '{candidate_name}'")
+            # Remove matched name from available pool
+            available_names.discard(candidate_name)
         else:
             logger.debug(f"No match found for player: {player_name}")
 
@@ -157,7 +161,7 @@ def calculate_name_match_score(name1: str, name2: str):
     return score
 
 
-def get_best_match(target_name: str, candidate_names: list[str]):
+def get_best_match(target_name: str, candidate_names: set[str]):
     """Find best matching name from candidates. Returns closest match or None."""
     # Early return for exact match
     if target_name in candidate_names:
