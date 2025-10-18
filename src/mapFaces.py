@@ -92,7 +92,7 @@ def update_faces_structure(
         dest_path = f"{dest_folder_path}/{item.dest_player_id}"
 
         if not os.path.exists(src_path):
-            logger.warning(f"Source path does not exist: {src_path}")
+            logger.debug(f"Source path does not exist: {src_path}")
             continue
 
         if not os.path.exists(dest_path):
@@ -221,7 +221,7 @@ if __name__ == "__main__":
     source_csv = "samples/BPB-2023-players.csv"
     destination_csv = "samples/FL26_players.csv"
     src_folder_path = "samples"
-    dest_folder_path = "livecpk/root"
+    dest_folder_path = "result/root"
 
     try:
         source_data = read_csv(source_csv)
