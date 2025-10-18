@@ -159,9 +159,7 @@ def get_best_match(target_name: str, candidate_names: set[str]):
             continue
 
         # Now do the expensive matching
-        score = calculate_name_match_score_optimized(
-            target_parts, target_normalized, candidate
-        )
+        score = calculate_name_match_score(target_parts, target_normalized, candidate)
         if score is not None and score > best_score:
             best_score = score
             best_match = candidate
@@ -169,7 +167,7 @@ def get_best_match(target_name: str, candidate_names: set[str]):
     return best_match
 
 
-def calculate_name_match_score_optimized(
+def calculate_name_match_score(
     target_parts: list[str], target_normalized: str, candidate_name: str
 ):
     """Optimized matching that accepts pre-normalized target. Returns None if no match."""
