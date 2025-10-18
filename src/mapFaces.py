@@ -129,54 +129,85 @@ def normalize(fullName: str):
     return cleaned.casefold()
 
 
-def calculate_name_match_score(name1: str, name2: str):
-    """Calculate match score. Higher is better. Returns None if no match."""
-    parts1 = normalize(name1).split()
-    parts2 = normalize(name2).split()
-
-    if len(parts1) != len(parts2):
-        return None
-
-    if len(parts1) == 1:
-        return 100 if parts1[0] == parts2[0] else None
-
-    # Surname must match exactly
-    if parts1[-1] != parts2[-1]:
-        return None
-
-    score = 0
-
-    # Check all first names
-    for p1, p2 in zip(parts1[:-1], parts2[:-1]):
-        if len(p1) == 1 or len(p2) == 1:
-            if p1[0] != p2[0]:
-                return None
-            score += 1  # Lower score for initial match
-        else:
-            if p1 != p2:
-                return None
-            score += 10  # Higher score for full name match
-
-    score += 50  # Bonus for surname match
-    return score
-
-
 def get_best_match(target_name: str, candidate_names: set[str]):
-    """Find best matching name from candidates. Returns closest match or None."""
+    """Find best matching name from candidates with early filtering. Returns closest match or None."""
     # Early return for exact match
     if target_name in candidate_names:
         return target_name
+
+    # Normalize target once (cache it)
+    target_normalized = normalize(target_name)
+    target_parts = target_normalized.split()
+
+    # Extract surname for quick filtering
+    target_surname = target_parts[-1] if target_parts else ""
 
     best_match = None
     best_score = -1
 
     for candidate in candidate_names:
-        score = calculate_name_match_score(target_name, candidate)
+        # Quick checks before expensive normalization
+
+        # 1. Filter by approximate length (allow some flexibility)
+        if abs(len(candidate) - len(target_name)) > 10:
+            continue
+
+        # 2. Check if surnames share first character (cheap check)
+        if target_surname and not any(
+            word.lower().startswith(target_surname[0]) for word in candidate.split()
+        ):
+            continue
+
+        # Now do the expensive matching
+        score = calculate_name_match_score_optimized(
+            target_parts, target_normalized, candidate
+        )
         if score is not None and score > best_score:
             best_score = score
             best_match = candidate
 
     return best_match
+
+
+def calculate_name_match_score_optimized(
+    target_parts: list[str], target_normalized: str, candidate_name: str
+):
+    """Optimized matching that accepts pre-normalized target. Returns None if no match."""
+    # Normalize candidate
+    candidate_normalized = normalize(candidate_name)
+
+    # Quick exact match after normalization
+    if target_normalized == candidate_normalized:
+        return 1000  # Perfect match gets highest score
+
+    candidate_parts = candidate_normalized.split()
+
+    # Length mismatch - early exit
+    if len(target_parts) != len(candidate_parts):
+        return None
+
+    if len(target_parts) == 1:
+        return 100 if target_parts[0] == candidate_parts[0] else None
+
+    # Surname must match exactly - check first to fail fast
+    if target_parts[-1] != candidate_parts[-1]:
+        return None
+
+    score = 0
+
+    # Check all first names
+    for p1, p2 in zip(target_parts[:-1], candidate_parts[:-1]):
+        if len(p1) == 1 or len(p2) == 1:
+            if p1[0] != p2[0]:
+                return None
+            score += 1
+        else:
+            if p1 != p2:
+                return None
+            score += 10
+
+    score += 50
+    return score
 
 
 if __name__ == "__main__":
