@@ -30,6 +30,7 @@ class Player:
 @dataclass(frozen=True)
 class PlayerMapping:
     src_player_id: str
+    src_player_name: str
     dest_player_id: str
 
 
@@ -94,10 +95,16 @@ def read_folders(folder_path: str) -> list[Player]:
 
         for folder in sorted(folder_path_obj.iterdir()):
             if folder.is_dir():
-                # Use folder name as both player name and ID
                 player_name = folder.name
-                player_id = folder.name
-                data.append(Player(player_id, player_name))
+                subdirs = [d for d in folder.iterdir() if d.is_dir()]
+
+                if len(subdirs) == 1:
+                    player_id = subdirs[0].name
+                    data.append(Player(player_id, player_name))
+                else:
+                    logger.warning(
+                        f"Skipping '{player_name}': expected exactly 1 subdirectory, found {len(subdirs)}"
+                    )
 
         logger.info(f"Successfully read {len(data)} player folders")
     except Exception as e:
@@ -136,7 +143,9 @@ def get_player_mapping(
         if candidate_normalized:
             # Map back to original name
             candidate_original = normalized_to_original[candidate_normalized]
-            player_mapping.append(PlayerMapping(player.id, candidate_original.id))
+            player_mapping.append(
+                PlayerMapping(player.id, player.name, candidate_original.id)
+            )
             # Remove matched name from available pool
             available_normalized.discard(candidate_normalized)
         else:
@@ -156,7 +165,10 @@ def update_faces_structure(
 
     for item in mapping:
         # src_path = f"{src_folder_path}/{FACE_PATH}/{item.src_player_id}"
-        src_path = f"{src_folder_path}/{item.src_player_id}"
+        path_direct = f"{src_folder_path}/{item.src_player_id}"
+        path_nested = f"{src_folder_path}/{item.src_player_name}/{item.src_player_id}"
+        src_path = path_direct if os.path.exists(path_direct) else path_nested
+
         # dest_path = f"{dest_folder_path}/{FACE_PATH}/{item.dest_player_id}"
         dest_path = f"{dest_folder_path}/{item.dest_player_id}"
 
