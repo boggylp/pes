@@ -1,4 +1,5 @@
 import csv
+from dataclasses import dataclass
 import os
 from pathlib import Path
 import shutil
@@ -17,25 +18,28 @@ ENCODING = "utf-8-sig"
 FACE_PATH = "Asset/model/character/face/real"
 
 
+@dataclass(frozen=True)
+class Player:
+    id: str
+    name: str
+
+
+@dataclass(frozen=True)
 class PlayerMapping:
     src_player_id: str
     dest_player_id: str
 
-    def __init__(self, src_player_id: str, dest_player_id: str):
-        self.src_player_id = src_player_id
-        self.dest_player_id = dest_player_id
 
-
-def read_csv(file_path: str):
+def read_csv(file_path: str) -> list[Player]:
     logger.info(f"Reading CSV file: {file_path}")
-    data = {}
+    data: list[Player] = []
     try:
         with open(file_path, mode="r", encoding=ENCODING) as file:
             reader = csv.DictReader(file, delimiter=DELIMITER)
             for row in reader:
                 player_id = row["Id"]
                 player_name = row["Name"]
-                data[player_name] = player_id
+                data.append(Player(player_id, player_name))
         logger.info(f"Successfully read {len(data)} players from {file_path}")
     except Exception as e:
         logger.error(f"Error reading CSV file {file_path}: {e}")
@@ -43,35 +47,31 @@ def read_csv(file_path: str):
     return data
 
 
-def get_player_mapping(source_csv: str, destination_csv: str) -> list[PlayerMapping]:
+def get_player_mapping(
+    source_data: list[Player], destination_data: list[Player]
+) -> list[PlayerMapping]:
     logger.info("Starting player mapping process")
-    source_data = read_csv(source_csv)
-    destination_data = read_csv(destination_csv)
     player_mapping = []
 
     # Pre-normalize all destination names once
-    normalized_to_original = {normalize(name): name for name in destination_data.keys()}
+    normalized_to_original = {normalize(item.name): item for item in destination_data}
     available_normalized = set(normalized_to_original.keys())
 
     logger.info(f"Pre-normalized {len(normalized_to_original)} destination players")
 
-    for player_name in source_data.keys():
+    for player in source_data:
         if len(available_normalized) == 0:
             break
-        candidate_normalized = get_best_match(player_name, available_normalized)
+        candidate_normalized = get_best_match(player.name, available_normalized)
         if candidate_normalized:
             # Map back to original name
             candidate_original = normalized_to_original[candidate_normalized]
-            player_mapping.append(
-                PlayerMapping(
-                    source_data[player_name], destination_data[candidate_original]
-                )
-            )
-            logger.debug(f"Matched '{player_name}' -> '{candidate_original}'")
+            player_mapping.append(PlayerMapping(player.id, candidate_original.id))
+            logger.debug(f"Matched '{player.name}' -> '{candidate_original}'")
             # Remove matched name from available pool
             available_normalized.discard(candidate_normalized)
         else:
-            logger.debug(f"No match found for player: {player_name}")
+            logger.debug(f"No match found for player: {player.name}")
 
     logger.info(f"Successfully mapped {len(player_mapping)} players")
     return player_mapping
@@ -224,7 +224,9 @@ if __name__ == "__main__":
     dest_folder_path = "livecpk/root"
 
     try:
-        mapping = get_player_mapping(source_csv, destination_csv)
+        source_data = read_csv(source_csv)
+        destination_data = read_csv(destination_csv)
+        mapping = get_player_mapping(source_data, destination_data)
         update_faces_structure(src_folder_path, f"{dest_folder_path}", mapping)
         logger.info("=== Finished processing successfully ===")
     except Exception as e:
