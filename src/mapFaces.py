@@ -3,6 +3,15 @@ import os
 from pathlib import Path
 import shutil
 import unicodedata
+import logging
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+logger = logging.getLogger(__name__)
 
 DELIMITER = ";"
 ENCODING = "utf-8-sig"
@@ -18,17 +27,24 @@ class PlayerMapping:
 
 
 def read_csv(file_path: str):
+    logger.info(f"Reading CSV file: {file_path}")
     data = {}
-    with open(file_path, mode="r", encoding=ENCODING) as file:
-        reader = csv.DictReader(file, delimiter=DELIMITER)
-        for row in reader:
-            player_id = row["Id"]
-            player_name = row["Name"]
-            data[(player_name)] = player_id
+    try:
+        with open(file_path, mode="r", encoding=ENCODING) as file:
+            reader = csv.DictReader(file, delimiter=DELIMITER)
+            for row in reader:
+                player_id = row["Id"]
+                player_name = row["Name"]
+                data[player_name] = player_id
+        logger.info(f"Successfully read {len(data)} players from {file_path}")
+    except Exception as e:
+        logger.error(f"Error reading CSV file {file_path}: {e}")
+        raise
     return data
 
 
 def get_player_mapping(source_csv: str, destination_csv: str) -> list[PlayerMapping]:
+    logger.info("Starting player mapping process")
     source_data = read_csv(source_csv)
     destination_data = read_csv(destination_csv)
     player_mapping = []
@@ -42,43 +58,65 @@ def get_player_mapping(source_csv: str, destination_csv: str) -> list[PlayerMapp
                     source_data[player_name], destination_data[candidate_name]
                 )
             )
+            logger.debug(f"Matched '{player_name}' -> '{candidate_name}'")
+        else:
+            logger.warning(f"No match found for player: {player_name}")
+
+    logger.info(f"Successfully mapped {len(player_mapping)} players")
     return player_mapping
 
 
 def update_faces_structure(
     src_folder_path: str, dest_folder_path: str, mapping: list[PlayerMapping]
 ):
+    logger.info(
+        f"Updating faces structure from {src_folder_path} to {dest_folder_path}"
+    )
     facePath = "Asset/model/character/face/real"
+    processed = 0
+
     for item in mapping:
         src_path = f"{src_folder_path}/{facePath}/{item.src_player_id}"
         dest_path = f"{dest_folder_path}/{facePath}/{item.dest_player_id}"
+
         if not os.path.exists(src_path):
+            logger.warning(f"Source path does not exist: {src_path}")
             continue
+
         if not os.path.exists(dest_path):
             os.makedirs(dest_path)
+            logger.debug(f"Created directory: {dest_path}")
+
         shutil.copytree(src_path, dest_path, dirs_exist_ok=True)
         hex_replace(
             f"{dest_path}/#Win/face.fpk", item.src_player_id, item.dest_player_id
         )
+        processed += 1
+
+    logger.info(f"Successfully processed {processed} player faces")
 
 
 def hex_replace(file_path, old_id, new_id):
     if not Path(file_path).exists():
+        logger.debug(f"File does not exist, skipping hex replace: {file_path}")
         return
 
-    with open(file_path, "rb") as f:
-        data = f.read()
+    try:
+        with open(file_path, "rb") as f:
+            data = f.read()
 
-    data = data.replace(old_id.encode(), new_id.encode())
+        data = data.replace(old_id.encode(), new_id.encode())
 
-    with open(file_path, "wb") as f:
-        f.write(data)
+        with open(file_path, "wb") as f:
+            f.write(data)
+        logger.debug(f"Hex replaced in {file_path}: {old_id} -> {new_id}")
+    except Exception as e:
+        logger.error(f"Error during hex replace in {file_path}: {e}")
 
 
 def normalize(fullName: str):
     """Remove accents and non-alphanumeric characters (keep spaces)"""
     nfd = unicodedata.normalize("NFD", fullName)
-    # Remove accents and keep only alphanumeric + spaces
     cleaned = "".join(
         character
         for character in nfd
@@ -122,6 +160,10 @@ def calculate_name_match_score(name1: str, name2: str):
 
 def get_best_match(target_name: str, candidate_names: list[str]):
     """Find best matching name from candidates. Returns closest match or None."""
+    # Early return for exact match
+    if target_name in candidate_names:
+        return target_name
+
     best_match = None
     best_score = -1
 
@@ -135,11 +177,17 @@ def get_best_match(target_name: str, candidate_names: list[str]):
 
 
 if __name__ == "__main__":
+    logger.info("=== Starting Player Face Mapping Tool ===")
+
     source_csv = "samples/BPB-2023-players.csv"
     destination_csv = "samples/FL26_players.csv"
     src_folder_path = "samples"
     dest_folder_path = "livecpk/root"
 
-    mapping = get_player_mapping(source_csv, destination_csv)
-    update_faces_structure(src_folder_path, f"result/{dest_folder_path}", mapping)
-    print("Finished processing")
+    try:
+        mapping = get_player_mapping(source_csv, destination_csv)
+        update_faces_structure(src_folder_path, f"result/{dest_folder_path}", mapping)
+        logger.info("=== Finished processing successfully ===")
+    except Exception as e:
+        logger.critical(f"Fatal error during processing: {e}", exc_info=True)
+        raise
