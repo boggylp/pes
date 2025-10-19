@@ -164,6 +164,10 @@ def update_faces_structure(
     processed = 0
 
     for item in mapping:
+        # Hashes get F'ed up if using different bit length of player id
+        if len(item.src_player_id) != len(item.dest_player_id):
+            continue
+
         # src_path = f"{src_folder_path}/{FACE_PATH}/{item.src_player_id}"
         path_direct = f"{src_folder_path}/{item.src_player_id}"
         path_nested = f"{src_folder_path}/{item.src_player_name}/{item.src_player_id}"
