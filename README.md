@@ -23,17 +23,17 @@ go build ./src/
 ### Usage
 
 ```sh
-# Public thread (no auth)
-go run ./src/ "https://xenforo.com/community/threads/example.12345/"
+# Save evoweb.uk credentials (one-time setup, stored at ~/.secrets/evoweb/credentials)
+go run ./src/ login
 
-# Authenticated forum
-go run ./src/ --cookie "xf_session=abc; xf_user=def" "https://evoweb.uk/threads/example.88633/"
-
-# From cookie file
-go run ./src/ --cookie-file ~/.secrets/evoweb-cookie "https://evoweb.uk/threads/example.88633/"
+# Scrape a thread (auto-logs in with stored credentials)
+go run ./src/ scrape "https://evoweb.uk/threads/example.88633/"
 
 # Limit pages
-go run ./src/ --max-pages 3 "https://evoweb.uk/threads/example.88633/"
+go run ./src/ scrape --max-pages 3 "https://evoweb.uk/threads/example.88633/"
+
+# Manual cookie override (skips stored credentials)
+go run ./src/ scrape --cookie "xf_session=abc; xf_user=def" "https://evoweb.uk/threads/example.88633/"
 ```
 
 ## faces

@@ -12,8 +12,9 @@
 ### evoweb (Go)
 
 - XenForo forum scraper. Build: `go build ./src/` from `evoweb/`.
-- Run: `go run ./src/ [flags] <thread-url>`.
-- Requires cookies for authenticated forums. Pass via `--cookie` or `--cookie-file`.
+- Subcommands: `go run ./src/ login` and `go run ./src/ scrape [flags] <url>`.
+- Credentials stored plaintext at `~/.secrets/evoweb/credentials`. Run `login` once to save them.
+- `--cookie` and `--cookie-file` flags override stored credentials.
 
 ### faces (Python)
 
