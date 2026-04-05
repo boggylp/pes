@@ -32,6 +32,9 @@ go run ./src/ scrape "https://evoweb.uk/threads/example.88633/"
 # Limit pages
 go run ./src/ scrape --max-pages 3 "https://evoweb.uk/threads/example.88633/"
 
+# Scrape only the last N pages of a thread
+go run ./src/ scrape --last-pages 5 "https://evoweb.uk/threads/example.88633/"
+
 # Manual cookie override (skips stored credentials)
 go run ./src/ scrape --cookie "xf_session=abc; xf_user=def" "https://evoweb.uk/threads/example.88633/"
 ```

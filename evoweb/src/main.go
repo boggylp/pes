@@ -71,6 +71,7 @@ func cmdScrape(args []string) {
 	cookie := fs.String("cookie", "", "cookie string (e.g. 'xf_session=abc; xf_user=def')")
 	cookieFile := fs.String("cookie-file", "", "path to file containing cookie string")
 	maxPages := fs.Int("max-pages", 0, "max pages to scrape (0 = all)")
+	lastPages := fs.Int("last-pages", 0, "scrape only the last N pages")
 	delay := fs.Duration("delay", 500*time.Millisecond, "delay between page requests")
 	fs.Parse(args)
 
@@ -88,7 +89,21 @@ func cmdScrape(args []string) {
 		log.Fatal(err)
 	}
 
-	thread, err := scrapeThread(client, threadURL, *maxPages, *delay)
+	scrapeURL := threadURL
+	scrapeMax := *maxPages
+
+	if *lastPages > 0 {
+		var pages int
+		log.Printf("Discovering page count for thread...")
+		scrapeURL, pages, err = resolveStartURL(client, threadURL, *lastPages, *delay)
+		if err != nil {
+			log.Fatalf("discovering pages: %v", err)
+		}
+		scrapeMax = pages
+		log.Printf("Scraping last %d pages (starting from %s)", pages, scrapeURL)
+	}
+
+	thread, err := scrapeThread(client, scrapeURL, scrapeMax, *delay)
 	if err != nil {
 		log.Fatal(err)
 	}
