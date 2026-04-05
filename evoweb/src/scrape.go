@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -119,4 +120,38 @@ func nextPageURL(doc *goquery.Document) string {
 		}
 	}
 	return href
+}
+
+func lastPageNumber(doc *goquery.Document) int {
+	last := 1
+	doc.Find("li.pageNav-page a").Each(func(_ int, s *goquery.Selection) {
+		text := strings.TrimSpace(s.Text())
+		if n, err := strconv.Atoi(text); err == nil && n > last {
+			last = n
+		}
+	})
+	return last
+}
+
+func resolveStartURL(client *http.Client, threadURL string, lastPages int, delay time.Duration) (string, int, error) {
+	doc, err := fetch(client, threadURL)
+	if err != nil {
+		return "", 0, err
+	}
+	total := lastPageNumber(doc)
+	start := total - lastPages + 1
+	if start < 1 {
+		start = 1
+	}
+	pages := total - start + 1
+	if start == 1 {
+		return threadURL, pages, nil
+	}
+	// Strip any existing /page-N suffix and append the start page
+	base := threadURL
+	if idx := strings.LastIndex(base, "/page-"); idx != -1 {
+		base = base[:idx]
+	}
+	base = strings.TrimRight(base, "/")
+	return fmt.Sprintf("%s/page-%d", base, start), pages, nil
 }
