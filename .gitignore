@@ -21,5 +21,8 @@ livecpk/
 .idea/
 .vscode/
 
+# Scraped data cache
+data/
+
 # Env
 .env
