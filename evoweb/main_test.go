@@ -23,7 +23,9 @@ func TestResolveCookie_DirectTakesPriority(t *testing.T) {
 func TestResolveCookie_FromFile(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "cookie.txt")
-	os.WriteFile(path, []byte("  xf_user=xyz  \n"), 0600)
+	if err := os.WriteFile(path, []byte("  xf_user=xyz  \n"), 0600); err != nil {
+		t.Fatal(err)
+	}
 
 	got := resolveCookie("", path)
 	if got != "xf_user=xyz" {

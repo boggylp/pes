@@ -73,7 +73,9 @@ func cmdScrape(args []string) {
 	maxPages := fs.Int("max-pages", 0, "max pages to scrape (0 = all)")
 	lastPages := fs.Int("last-pages", 0, "scrape only the last N pages")
 	delay := fs.Duration("delay", 500*time.Millisecond, "delay between page requests")
-	fs.Parse(args)
+	if err := fs.Parse(args); err != nil {
+		os.Exit(1)
+	}
 
 	if fs.NArg() < 1 {
 		fmt.Fprintln(os.Stderr, "usage: evoweb scrape [flags] <thread-url>")
