@@ -11,8 +11,8 @@
 
 ### evoweb (Go)
 
-- XenForo forum scraper. Build: `go build ./src/` from `evoweb/`.
-- Subcommands: `go run ./src/ login` and `go run ./src/ scrape [flags] <url>`.
+- XenForo forum scraper. Build: `go build .` from `evoweb/`.
+- Subcommands: `go run . login` and `go run . scrape [flags] <url>`.
 - Credentials stored plaintext at `~/.secrets/evoweb/credentials`. Run `login` once to save them.
 - `--cookie` and `--cookie-file` flags override stored credentials.
 
