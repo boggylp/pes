@@ -76,6 +76,10 @@ func extractCSRFToken(client *http.Client) (string, error) {
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("login page returned HTTP %d", resp.StatusCode)
+	}
+
 	buf, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return "", fmt.Errorf("reading login page: %w", err)
@@ -161,7 +165,10 @@ func buildClient(cookieStr string) (*http.Client, error) {
 
 	creds, err := loadCredentials()
 	if err != nil {
-		return nil, fmt.Errorf("no credentials found; run 'evoweb login' first")
+		if os.IsNotExist(err) {
+			return nil, fmt.Errorf("no credentials found; run 'evoweb login' first")
+		}
+		return nil, fmt.Errorf("failed to load credentials: %w", err)
 	}
 	log.Print("Logging in to evoweb.uk...")
 	return loginToForum(creds)

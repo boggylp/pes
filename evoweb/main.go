@@ -97,7 +97,7 @@ func cmdScrape(args []string) {
 	if *lastPages > 0 {
 		var pages int
 		log.Printf("Discovering page count for thread...")
-		scrapeURL, pages, err = resolveStartURL(client, threadURL, *lastPages, *delay)
+		scrapeURL, pages, err = resolveStartURL(client, threadURL, *lastPages)
 		if err != nil {
 			log.Fatalf("discovering pages: %v", err)
 		}

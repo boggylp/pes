@@ -133,7 +133,7 @@ func lastPageNumber(doc *goquery.Document) int {
 	return last
 }
 
-func resolveStartURL(client *http.Client, threadURL string, lastPages int, delay time.Duration) (string, int, error) {
+func resolveStartURL(client *http.Client, threadURL string, lastPages int) (string, int, error) {
 	doc, err := fetch(client, threadURL)
 	if err != nil {
 		return "", 0, err
