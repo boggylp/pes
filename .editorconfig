@@ -17,3 +17,20 @@ indent_size = 4
 
 [Makefile]
 indent_style = tab
+indent_size = 4
+
+[*.sln]
+end_of_line = crlf
+indent_style = tab
+indent_size = 4
+
+[*.py]
+indent_size = 4
+
+[*.{csproj,vbproj,vcxproj,vcxproj.filters,proj,projitems,shproj}]
+indent_size = 2
+
+# C# files
+[*.{cs,vb}]
+indent_size = 4
+max_line_length = 120
