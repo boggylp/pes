@@ -26,3 +26,4 @@ data/
 
 # Env
 .env
+.claude/
