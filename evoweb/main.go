@@ -115,6 +115,7 @@ func cmdScrape(args []string) {
 		log.Fatal(err)
 	}
 
+	thread = mergeThread(*output, thread)
 	writeJSON(thread, *output)
 }
 
@@ -149,6 +150,53 @@ func cmdForum(args []string) {
 	}
 
 	writeJSON(forum, *output)
+}
+
+// mergeThread loads existing posts from outputPath (if any) and merges them
+// with newly scraped posts, deduplicating by date+author.
+func mergeThread(outputPath string, scraped *Thread) *Thread {
+	data, err := os.ReadFile(outputPath)
+	if err != nil {
+		return scraped // file doesn't exist yet, nothing to merge
+	}
+
+	var existing Thread
+	if err := json.Unmarshal(data, &existing); err != nil {
+		log.Printf("warning: could not parse existing %s, overwriting: %v", outputPath, err)
+		return scraped
+	}
+
+	// Use the scraped thread's metadata if it has a title, otherwise keep existing
+	if scraped.Title == "" {
+		scraped.Title = existing.Title
+	}
+	if scraped.URL == "" {
+		scraped.URL = existing.URL
+	}
+
+	// Build set of existing posts keyed by date+author
+	type postKey struct {
+		date   string
+		author string
+	}
+	seen := make(map[postKey]struct{}, len(existing.Posts))
+	for _, p := range existing.Posts {
+		seen[postKey{p.Date, p.Author}] = struct{}{}
+	}
+
+	// Append only new posts
+	added := 0
+	for _, p := range scraped.Posts {
+		if _, ok := seen[postKey{p.Date, p.Author}]; !ok {
+			existing.Posts = append(existing.Posts, p)
+			seen[postKey{p.Date, p.Author}] = struct{}{}
+			added++
+		}
+	}
+
+	log.Printf("merged: %d existing + %d new = %d total posts", len(existing.Posts)-added, added, len(existing.Posts))
+	scraped.Posts = existing.Posts
+	return scraped
 }
 
 func writeJSON(v any, outputPath string) {
