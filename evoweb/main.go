@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -75,6 +76,7 @@ func cmdScrape(args []string) {
 	cookieFile := fs.String("cookie-file", "", "path to file containing cookie string")
 	maxPages := fs.Int("max-pages", 0, "max pages to scrape (0 = all)")
 	lastPages := fs.Int("last-pages", 0, "scrape only the last N pages")
+	output := fs.String("output", "", "write JSON to file instead of stdout")
 	delay := fs.Duration("delay", 500*time.Millisecond, "delay between page requests")
 	if err := fs.Parse(args); err != nil {
 		os.Exit(1)
@@ -113,11 +115,7 @@ func cmdScrape(args []string) {
 		log.Fatal(err)
 	}
 
-	enc := json.NewEncoder(os.Stdout)
-	enc.SetIndent("", "  ")
-	if err := enc.Encode(thread); err != nil {
-		log.Fatal(err)
-	}
+	writeJSON(thread, *output)
 }
 
 func cmdForum(args []string) {
@@ -125,6 +123,7 @@ func cmdForum(args []string) {
 	cookie := fs.String("cookie", "", "cookie string (e.g. 'xf_session=abc; xf_user=def')")
 	cookieFile := fs.String("cookie-file", "", "path to file containing cookie string")
 	maxPages := fs.Int("max-pages", 1, "max pages to list (default 1)")
+	output := fs.String("output", "", "write JSON to file instead of stdout")
 	delay := fs.Duration("delay", 500*time.Millisecond, "delay between page requests")
 	if err := fs.Parse(args); err != nil {
 		os.Exit(1)
@@ -149,10 +148,29 @@ func cmdForum(args []string) {
 		log.Fatal(err)
 	}
 
-	enc := json.NewEncoder(os.Stdout)
+	writeJSON(forum, *output)
+}
+
+func writeJSON(v any, outputPath string) {
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
 	enc.SetIndent("", "  ")
-	if err := enc.Encode(forum); err != nil {
-		log.Fatal(err)
+	if err := enc.Encode(v); err != nil {
+		log.Fatalf("encoding JSON: %v", err)
+	}
+
+	// Validate the produced JSON is parseable
+	if !json.Valid(buf.Bytes()) {
+		log.Fatal("produced invalid JSON")
+	}
+
+	if outputPath != "" {
+		if err := os.WriteFile(outputPath, buf.Bytes(), 0644); err != nil {
+			log.Fatalf("writing %s: %v", outputPath, err)
+		}
+		log.Printf("wrote %s (%d bytes)", outputPath, buf.Len())
+	} else {
+		os.Stdout.Write(buf.Bytes())
 	}
 }
 
