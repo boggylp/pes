@@ -22,6 +22,8 @@ func main() {
 		cmdLogin()
 	case "scrape":
 		cmdScrape(os.Args[2:])
+	case "forum":
+		cmdForum(os.Args[2:])
 	default:
 		printUsage()
 		os.Exit(1)
@@ -33,7 +35,8 @@ func printUsage() {
 
 commands:
   login              save evoweb.uk credentials
-  scrape [flags] URL scrape a XenForo thread`)
+  scrape [flags] URL scrape a XenForo thread
+  forum  [flags] URL list threads from a XenForo forum`)
 }
 
 func cmdLogin() {
@@ -113,6 +116,42 @@ func cmdScrape(args []string) {
 	enc := json.NewEncoder(os.Stdout)
 	enc.SetIndent("", "  ")
 	if err := enc.Encode(thread); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func cmdForum(args []string) {
+	fs := flag.NewFlagSet("forum", flag.ExitOnError)
+	cookie := fs.String("cookie", "", "cookie string (e.g. 'xf_session=abc; xf_user=def')")
+	cookieFile := fs.String("cookie-file", "", "path to file containing cookie string")
+	maxPages := fs.Int("max-pages", 1, "max pages to list (default 1)")
+	delay := fs.Duration("delay", 500*time.Millisecond, "delay between page requests")
+	if err := fs.Parse(args); err != nil {
+		os.Exit(1)
+	}
+
+	if fs.NArg() < 1 {
+		fmt.Fprintln(os.Stderr, "usage: evoweb forum [flags] <forum-url>")
+		fs.PrintDefaults()
+		os.Exit(1)
+	}
+
+	forumURL := fs.Arg(0)
+
+	cookieStr := resolveCookie(*cookie, *cookieFile)
+	client, err := buildClient(cookieStr)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	forum, err := scrapeForum(client, forumURL, *maxPages, *delay)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	enc := json.NewEncoder(os.Stdout)
+	enc.SetIndent("", "  ")
+	if err := enc.Encode(forum); err != nil {
 		log.Fatal(err)
 	}
 }

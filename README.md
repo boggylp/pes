@@ -11,32 +11,38 @@ faces/      Player face mapping between game versions (Python)
 
 ## evoweb
 
-Scrapes threads from XenForo-based forums (e.g. evoweb.uk). Outputs structured JSON with thread title, posts, authors, and dates.
+Scrapes threads and forum listings from XenForo-based forums (e.g. evoweb.uk). Outputs structured JSON.
 
 ### Build
 
 ```sh
 cd evoweb
-go build ./src/
+go build .
 ```
 
 ### Usage
 
 ```sh
 # Save evoweb.uk credentials (one-time setup, stored at ~/.secrets/evoweb/credentials)
-go run ./src/ login
+go run . login
 
 # Scrape a thread (auto-logs in with stored credentials)
-go run ./src/ scrape "https://evoweb.uk/threads/example.88633/"
+go run . scrape "https://evoweb.uk/threads/example.88633/"
 
 # Limit pages
-go run ./src/ scrape --max-pages 3 "https://evoweb.uk/threads/example.88633/"
+go run . scrape --max-pages 3 "https://evoweb.uk/threads/example.88633/"
 
 # Scrape only the last N pages of a thread
-go run ./src/ scrape --last-pages 5 "https://evoweb.uk/threads/example.88633/"
+go run . scrape --last-pages 5 "https://evoweb.uk/threads/example.88633/"
+
+# List threads from a forum (default: 1 page)
+go run . forum "https://evoweb.uk/forums/pes-2021.337/"
+
+# List threads from multiple pages
+go run . forum --max-pages 3 "https://evoweb.uk/forums/pes-2021.337/"
 
 # Manual cookie override (skips stored credentials)
-go run ./src/ scrape --cookie "xf_session=abc; xf_user=def" "https://evoweb.uk/threads/example.88633/"
+go run . scrape --cookie "xf_session=abc; xf_user=def" "https://evoweb.uk/threads/example.88633/"
 ```
 
 ## faces
