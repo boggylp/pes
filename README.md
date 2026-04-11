@@ -6,7 +6,7 @@ Pro Evolution Soccer / SP Football Life related utilities.
 
 ```text
 evoweb/     XenForo forum scraper (Go)
-faces/      Player face mapping between game versions (Python)
+faces/      Player face mapping and mismatch detection (Go)
 ```
 
 ## evoweb
@@ -47,19 +47,25 @@ go run . scrape --output data/example.json --cookie "xf_session=abc; xf_user=def
 
 ## faces
 
-Maps player faces between PES/Football Life versions by matching player names across CSV exports and copying face asset directories.
+Player face mapping and mismatch detection for PES/Football Life. Matches player names across CSV exports and copies face asset directories.
 
-### Setup
+### Build
 
 ```sh
 cd faces
-uv sync
+go build .
 ```
 
 ### Usage
 
 ```sh
-uv run src/mapFaces.py \
+# Detect mismatched/orphaned faces in livecpk folder
+go run . detect \
+  --faces-dir "/path/to/livecpk/.../face/real" \
+  --player-csv "/path/to/UML 2026 - Player IDs.csv"
+
+# Map faces between game versions
+go run . map \
   --source-csv samples/BPB-2023-players.csv \
   --destination-csv samples/FL26_players.csv \
   --source-folder /path/to/source/faces \

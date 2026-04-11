@@ -21,8 +21,9 @@
 - `--cookie` and `--cookie-file` flags override stored credentials.
 - **Always use `--output data/<name>.json`** when scraping. Never scrape to stdout only. All results must be persisted in `evoweb/data/` for future analysis.
 
-### faces (Python)
+### faces (Go)
 
-- Player face mapping utility. Uses uv for package management.
-- Setup: `uv sync` from `faces/`.
-- Run: `uv run src/mapFaces.py [args]` from `faces/`.
+- Player face mapping and mismatch detection. Build: `go build .` from `faces/`.
+- Subcommands: `go run . detect --faces-dir <path> --player-csv <file>`, `go run . map [flags]`.
+- `detect` scans a livecpk faces folder for ID mismatches, orphans, non-numeric folders, and missing FPKs.
+- `map` copies and remaps faces between game versions using name matching across CSV exports.
