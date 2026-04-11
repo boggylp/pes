@@ -6,7 +6,8 @@
 
 - Monorepo with independent tools in subdirectories, each with its own language and build system.
 - After making changes, ask `commit/push backup?`; if user confirms, commit and push immediately.
-- When asked about PES/Football Life mods, patches, or community content, use the evoweb scraper to fetch thread content directly rather than relying on web search alone. Scrape relevant evoweb.uk threads and summarize findings from actual post content.
+- When asked about PES/Football Life mods, patches, or community content, first check the AI Knowledge Base (`~/dev/priv/ai-knowledge-base/wiki/pes/`) for existing research, then use the evoweb scraper to fetch fresh thread content. Update the AIKB article when findings are worth preserving.
+- Scraped JSON data lives in `evoweb/data/`. Use `duckdb` to query it for analysis across large datasets.
 
 ## Tools
 
