@@ -14,10 +14,11 @@
 ### evoweb (Go)
 
 - XenForo forum scraper. Build: `go build .` from `evoweb/`.
-- Subcommands: `go run . login`, `go run . scrape [flags] <url>`, `go run . forum [flags] <url>`.
+- Subcommands: `go run . login`, `go run . scrape --output <file> [flags] <url>`, `go run . forum --output <file> [flags] <url>`.
 - `scrape` extracts posts from a thread. `forum` lists threads from a forum index page.
 - Credentials stored plaintext at `~/.secrets/evoweb/credentials`. Run `login` once to save them.
 - `--cookie` and `--cookie-file` flags override stored credentials.
+- **Always use `--output data/<name>.json`** when scraping. Never scrape to stdout only. All results must be persisted in `evoweb/data/` for future analysis.
 
 ### faces (Python)
 

@@ -27,22 +27,22 @@ go build .
 go run . login
 
 # Scrape a thread (auto-logs in with stored credentials)
-go run . scrape "https://evoweb.uk/threads/example.88633/"
+go run . scrape --output data/example.json "https://evoweb.uk/threads/example.88633/"
 
 # Limit pages
-go run . scrape --max-pages 3 "https://evoweb.uk/threads/example.88633/"
+go run . scrape --output data/example.json --max-pages 3 "https://evoweb.uk/threads/example.88633/"
 
 # Scrape only the last N pages of a thread
-go run . scrape --last-pages 5 "https://evoweb.uk/threads/example.88633/"
+go run . scrape --output data/example.json --last-pages 5 "https://evoweb.uk/threads/example.88633/"
 
 # List threads from a forum (default: 1 page)
-go run . forum "https://evoweb.uk/forums/pes-2021.337/"
+go run . forum --output data/forum.json "https://evoweb.uk/forums/pes-2021.337/"
 
 # List threads from multiple pages
-go run . forum --max-pages 3 "https://evoweb.uk/forums/pes-2021.337/"
+go run . forum --output data/forum.json --max-pages 3 "https://evoweb.uk/forums/pes-2021.337/"
 
 # Manual cookie override (skips stored credentials)
-go run . scrape --cookie "xf_session=abc; xf_user=def" "https://evoweb.uk/threads/example.88633/"
+go run . scrape --output data/example.json --cookie "xf_session=abc; xf_user=def" "https://evoweb.uk/threads/example.88633/"
 ```
 
 ## faces
