@@ -1,10 +1,30 @@
-[CmdletBinding()]
+[CmdletBinding(DefaultParameterSetName = 'ExplicitOutput')]
 param(
     [Parameter(Mandatory, Position = 0)]
     [string]$Path,
 
-    [Parameter(Position = 1)]
-    [string]$OutPath
+    [Parameter(Position = 1, ParameterSetName = 'ExplicitOutput')]
+    [string]$OutPath,
+
+    [Parameter(ParameterSetName = 'TeamNaming')]
+    [int]$TeamId,
+
+    [Parameter(ParameterSetName = 'TeamNaming')]
+    [string]$TeamName,
+
+    [Parameter(ParameterSetName = 'TeamNaming')]
+    [ValidateRange(1, 9)]
+    [int]$Slot = 1,
+
+    [Parameter(ParameterSetName = 'TeamNaming')]
+    [ValidateSet('p', 'g')]
+    [string]$KitType = 'p',
+
+    [Parameter(ParameterSetName = 'TeamNaming')]
+    [string]$TeamsFile = (Join-Path ${env:ProgramFiles(x86)} 'SP Football Life 2026\FL26_teams.txt'),
+
+    [Parameter(ParameterSetName = 'TeamNaming')]
+    [string]$OutDir
 )
 
 $ErrorActionPreference = 'Stop'
@@ -38,39 +58,82 @@ function Get-FtexTool {
     return $FtexToolExe
 }
 
+function Resolve-TeamId {
+    param([string]$TeamsFile, [string]$Name)
+
+    if (-not (Test-Path -LiteralPath $TeamsFile)) {
+        throw "Teams file not found: $TeamsFile"
+    }
+
+    $matches = Get-Content -LiteralPath $TeamsFile | Where-Object {
+        $_ -match "^\s*(\d+)\s*-\s*(.+?)\s*$" -and $Matches[2] -like "*$Name*"
+    } | ForEach-Object {
+        if ($_ -match "^\s*(\d+)\s*-\s*(.+?)\s*$") {
+            [PSCustomObject]@{ Id = [int]$Matches[1]; Name = $Matches[2] }
+        }
+    }
+
+    if (-not $matches) {
+        throw "No team matched '$Name' in $TeamsFile"
+    }
+    if (@($matches).Count -gt 1) {
+        $list = ($matches | ForEach-Object { "$($_.Id) - $($_.Name)" }) -join "`n  "
+        throw "Multiple teams matched '$Name':`n  $list`nRefine the name or pass -TeamId."
+    }
+    return $matches[0]
+}
+
 if (-not (Get-Command magick -ErrorAction SilentlyContinue)) {
     throw "magick not in PATH. Install ImageMagick."
 }
 
 $ftexTool = Get-FtexTool
-
 $src = Get-Item -LiteralPath $Path
 
-if (-not $OutPath) {
+if ($PSCmdlet.ParameterSetName -eq 'TeamNaming') {
+    if (-not $TeamId) {
+        if (-not $TeamName) {
+            throw "Provide -TeamId or -TeamName."
+        }
+        $team = Resolve-TeamId -TeamsFile $TeamsFile -Name $TeamName
+        $TeamId = $team.Id
+        Write-Verbose "Resolved team: $($team.Id) - $($team.Name)"
+    }
+    $baseName = "u${TeamId}${KitType}${Slot}"
+    if (-not $OutDir) { $OutDir = $src.Directory.FullName }
+    $OutPath = Join-Path $OutDir ($baseName + '.ftex')
+}
+elseif (-not $OutPath) {
     $OutPath = Join-Path $src.Directory.FullName ($src.BaseName + '.ftex')
 }
 
-$outDir = [IO.Path]::GetDirectoryName([IO.Path]::GetFullPath($OutPath))
-if (-not (Test-Path -LiteralPath $outDir)) {
-    New-Item -ItemType Directory -Path $outDir -Force | Out-Null
+$outFolder = [IO.Path]::GetDirectoryName([IO.Path]::GetFullPath($OutPath))
+if (-not (Test-Path -LiteralPath $outFolder)) {
+    New-Item -ItemType Directory -Path $outFolder -Force | Out-Null
 }
+$outBase = [IO.Path]::GetFileNameWithoutExtension($OutPath)
 
 $tmp = Join-Path ([IO.Path]::GetTempPath()) ('kit-to-ftex-' + [Guid]::NewGuid())
 New-Item -ItemType Directory -Path $tmp | Out-Null
-$dds = Join-Path $tmp ($src.BaseName + '.dds')
+$dds = Join-Path $tmp ($outBase + '.dds')
 
 try {
     & magick $src.FullName -define dds:compression=dxt5 $dds
     if ($LASTEXITCODE) { throw "magick failed ($LASTEXITCODE)" }
 
-    & $ftexTool -i $dds -o $outDir
+    & $ftexTool -i $dds -o $tmp
     if ($LASTEXITCODE) { throw "FtexTool failed ($LASTEXITCODE)" }
 
-    $produced = Join-Path $outDir ($src.BaseName + '.ftex')
-    if ($produced -ne $OutPath -and (Test-Path -LiteralPath $produced)) {
-        Move-Item -Force -LiteralPath $produced -Destination $OutPath
+    $produced = @()
+    Get-ChildItem -LiteralPath $tmp -Filter "$outBase.*" -File | Where-Object {
+        $_.Extension -eq '.ftex' -or $_.Name -match '\.\d+\.ftexs$'
+    } | ForEach-Object {
+        $dest = Join-Path $outFolder $_.Name
+        Move-Item -Force -LiteralPath $_.FullName -Destination $dest
+        $produced += $dest
     }
-    Write-Output $OutPath
+
+    $produced | ForEach-Object { Write-Output $_ }
 }
 finally {
     Remove-Item -Recurse -Force -LiteralPath $tmp -ErrorAction SilentlyContinue

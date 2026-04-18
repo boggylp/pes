@@ -52,13 +52,30 @@ FtexTool (Atvaark's v0.3.3) is auto-fetched on first run into `tools/bin/FtexToo
 Usage:
 
 ```powershell
+# Plain conversion, output next to input
 pwsh -File .\tools\kit-to-ftex.ps1 path\to\kit.png
+
+# Explicit output path
 pwsh -File .\tools\kit-to-ftex.ps1 path\to\kit.png path\to\out\u.ftex
+
+# Kitserver naming by team ID + slot -> u<id>p<slot>.ftex
+pwsh -File .\tools\kit-to-ftex.ps1 path\to\kit.png -TeamId 2525 -Slot 3
+
+# Team name lookup (FL26_teams.txt from the Football Life 2026 install root)
+pwsh -File .\tools\kit-to-ftex.ps1 path\to\kit.png -TeamName Hajduk -Slot 3 -OutDir out\
+
+# Goalkeeper kit (-KitType g)
+pwsh -File .\tools\kit-to-ftex.ps1 path\to\kit.png -TeamId 2525 -KitType g -Slot 1
 ```
 
-Without `OutPath`, writes `<basename>.ftex` next to the input.
+Parameters:
 
-Output is four files: `<name>.ftex` (header) plus `<name>.1.ftexs`, `<name>.2.ftexs`, `<name>.3.ftexs` (mipmap tiers). Copy all four into the kitserver slot folder and rename to `u.ftex` / `u.1.ftexs` / `u.2.ftexs` / `u.3.ftexs` for the shirt. Kitserver folder scaffolding (p1/p2/p3, `config.txt`, `order.ini`, `map.txt`) is out of scope.
+- `-TeamId <int>` or `-TeamName <string>` - triggers kitserver naming `u<id><p|g><slot>.ftex`. Team name does a substring match in `FL26_teams.txt` (default path: `%ProgramFiles(x86)%\SP Football Life 2026\FL26_teams.txt`; override with `-TeamsFile`).
+- `-Slot <1-9>` - kit slot number (default `1`).
+- `-KitType p|g` - player or goalkeeper (default `p`).
+- `-OutDir <path>` - destination folder (default: next to the input PNG).
+
+Output is four files per texture: `<name>.ftex` (header) plus `<name>.1.ftexs`, `<name>.2.ftexs`, `<name>.3.ftexs` (mipmap tiers). Drop all four into the target kitserver slot folder. Kitserver folder scaffolding (`config.txt`, `order.ini`, `map.txt`) and partial-texture files (`_back`, `_leg`, `_name`) are out of scope.
 
 ## evoweb
 
