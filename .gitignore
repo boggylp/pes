@@ -17,6 +17,9 @@ result/
 *.7z
 livecpk/
 
+# Auto-fetched tool binaries
+tools/bin/
+
 # Editor/IDE
 .idea/
 .vscode/

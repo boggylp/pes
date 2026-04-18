@@ -39,6 +39,27 @@ What it does:
 
 The helper prefers loose files under `%USERPROFILE%\MEGA\gaming\pes\gameplay\vanilla\` and falls back to the `dt13 & dt18 vanilla.rar` archive when needed.
 
+### Kit PNG to FTEX converter
+
+`tools/kit-to-ftex.ps1` converts a kit PNG (e.g. exported from pesmaster.com/kit-creator) to a PES `.ftex` usable by kitserver.
+
+Pipeline: PNG -> DDS (DXT5, via ImageMagick) -> FTEX (via Atvaark's FtexTool).
+
+Prerequisite in `PATH`: `magick` (ImageMagick).
+
+FtexTool (Atvaark's v0.3.3) is auto-fetched on first run into `tools/bin/FtexTool-v0.3.3/` (gitignored).
+
+Usage:
+
+```powershell
+pwsh -File .\tools\kit-to-ftex.ps1 path\to\kit.png
+pwsh -File .\tools\kit-to-ftex.ps1 path\to\kit.png path\to\out\u.ftex
+```
+
+Without `OutPath`, writes `<basename>.ftex` next to the input.
+
+Output is four files: `<name>.ftex` (header) plus `<name>.1.ftexs`, `<name>.2.ftexs`, `<name>.3.ftexs` (mipmap tiers). Copy all four into the kitserver slot folder and rename to `u.ftex` / `u.1.ftexs` / `u.2.ftexs` / `u.3.ftexs` for the shirt. Kitserver folder scaffolding (p1/p2/p3, `config.txt`, `order.ini`, `map.txt`) is out of scope.
+
 ## evoweb
 
 Scrapes threads and forum listings from XenForo-based forums (e.g. evoweb.uk). Outputs structured JSON.
