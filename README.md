@@ -75,7 +75,9 @@ Parameters:
 - `-KitType p|g` - player or goalkeeper (default `p`).
 - `-OutDir <path>` - destination folder (default: next to the input PNG).
 
-Output is four files per texture: `<name>.ftex` (header) plus `<name>.1.ftexs`, `<name>.2.ftexs`, `<name>.3.ftexs` (mipmap tiers). Drop all four into the target kitserver slot folder. Kitserver folder scaffolding (`config.txt`, `order.ini`, `map.txt`) and partial-texture files (`_back`, `_leg`, `_name`) are out of scope.
+Output is a single embedded `<name>.ftex` file (FtexTool v0.4.0 `-f 0` mode) with full mipmap pyramid. Matches the format live kitserver folders already use. Drop it into the target kitserver slot folder. Kitserver folder scaffolding (`config.txt`, `order.ini`, `map.txt`) and partial-texture files (`_back`, `_leg`, `_name`) are out of scope.
+
+Caveat: produces DXT5 (FTEX PixelFormatType 4). Some stock kits use PixelFormatType 11 (unknown format, likely BC7). DXT5 is broadly compatible but may not exactly match the engine-preferred format for every kit slot; verify in-game.
 
 ## evoweb
 

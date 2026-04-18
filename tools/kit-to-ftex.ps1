@@ -29,7 +29,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
-$FtexToolVersion = 'v0.3.3'
+$FtexToolVersion = 'v0.4.0'
 $FtexToolUrl = "https://github.com/Atvaark/FtexTool/releases/download/$FtexToolVersion/FtexTool.$FtexToolVersion.zip"
 $FtexToolDir = Join-Path $PSScriptRoot "bin\FtexTool-$FtexToolVersion"
 $FtexToolExe = Join-Path $FtexToolDir 'FtexTool.exe'
@@ -118,10 +118,10 @@ New-Item -ItemType Directory -Path $tmp | Out-Null
 $dds = Join-Path $tmp ($outBase + '.dds')
 
 try {
-    & magick $src.FullName -define dds:compression=dxt5 $dds
+    & magick $src.FullName -define dds:compression=dxt5 -define dds:mipmaps=-1 $dds
     if ($LASTEXITCODE) { throw "magick failed ($LASTEXITCODE)" }
 
-    & $ftexTool -i $dds -o $tmp
+    & $ftexTool -f 0 -i $dds -o $tmp
     if ($LASTEXITCODE) { throw "FtexTool failed ($LASTEXITCODE)" }
 
     $produced = @()
