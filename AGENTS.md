@@ -12,6 +12,7 @@
 - The canonical gameplay backup root on this machine is `%USERPROFILE%\MEGA\gaming\pes\gameplay\`.
 - If the user gives an explicit install path, treat that path as authoritative. Do not search broader drives or user profile roots unless the user asks or the stated path fails verification.
 - Evidence-first only: do not propose gameplay reset or install steps until the exact active files are verified from the live install, at minimum `SiderAddons\sider.ini`, relevant `Data\dt13/dt18` files, backups, and archive contents or source-thread instructions.
+- Canonical reference for sider config (section layout, `lua.module` entries, livecpk roots, cache behavior): SOK Unleashed v9 thread at `https://evoweb.uk/threads/soulsofkaos-unleashed-9-pes2013.101010/`. Check it before advising on any sider.ini change.
 - Prefer file hashes over filename assumptions when identifying which gameplay is currently installed.
 - For live Football Life/PES installs, do not make gameplay or config changes after verification unless the user explicitly approves the install/change step.
 - Before any gameplay switch, inventory the full active gameplay stack, not just `dt18`: `dt13`, `dt18`, gameplay-related `livecpk` roots, gameplay-related `lua.module` entries, exe replacements, hook files, and cache files. Verify each component from file evidence or mod instructions.
