@@ -5,6 +5,7 @@ Pro Evolution Soccer / SP Football Life related utilities.
 ## Structure
 
 ```text
+cpk/        CRI Middleware CPK archive reader (Go)
 evoweb/     XenForo forum scraper (Go)
 faces/      Player face mapping and mismatch detection (Go)
 tools/      Local Windows helpers for PES and Football Life workflows
@@ -141,3 +142,32 @@ go run . map \
   --source-folder /path/to/source/faces \
   --dest-folder /path/to/destination/faces
 ```
+
+## cpk
+
+Reads the CRI Middleware CPK archive format (the `Data/dt*_*.cpk` files used by PES, Football Life, and BPB). Lists the table of contents and extracts files individually by inner path or in bulk. Falls back to CRILAYLA decompression when needed; PES 2017–2021 cpks usually store payloads uncompressed.
+
+### Build
+
+```sh
+cd cpk
+go build .
+```
+
+### Usage
+
+```sh
+# Print the table of contents
+./cpk list "/d/SteamLibrary/steamapps/common/eFootball PES 2021/Data/dt40_all.cpk"
+
+# Long listing with offsets and sizes
+./cpk list -l Data/dt40_all.cpk
+
+# Extract one file by inner path
+./cpk extract --file common/etc/pesdb/Player.bin --out Player.bin Data/dt00_x64.cpk
+
+# Extract everything to a directory
+./cpk extract --out extracted/ Data/dt40_all.cpk
+```
+
+See `cpk/README.md` for notes on where Player.bin lives and why BPB ships an empty one.

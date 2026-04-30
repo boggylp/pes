@@ -33,6 +33,14 @@
 - `--cookie` and `--cookie-file` flags override stored credentials.
 - **Always use `--output data/<name>.json`** when scraping. Never scrape to stdout only. All results must be persisted in `evoweb/data/` for future analysis.
 
+### cpk (Go)
+
+- CRI Middleware CPK archive reader. Build: `go build .` from `cpk/`.
+- Subcommands: `go run . list [-l] <cpk>`, `go run . extract [--file inner-path] [--out path] <cpk>`.
+- `list` prints inner paths; `-l` adds offsets and sizes. `extract` writes one file by inner path or dumps everything to a directory.
+- Inner-path matching is case-insensitive and accepts both `/` and `\`. Players base lives at `common/etc/pesdb/Player.bin` inside `Data/dt00_x64.cpk`; `Data/dt10_x64.cpk` and `download/dt80_*E_x64.cpk` override in load order.
+- BPB 2026 ships `Player.bin` zeroed in both `dt00` and `dt10` (1,751,422 bytes of `00`). Real player data lives in the encrypted EDIT save at `~/Documents/KONAMI/eFootball PES 2021 SEASON UPDATE/<SteamID>/save/EDIT00000000`. The cpk tool does not parse EDIT files; ejogc327's PES Editor or kisni07's PESDatabase do.
+
 ### faces (Go)
 
 - Player face mapping and mismatch detection. Build: `go build .` from `faces/`.
