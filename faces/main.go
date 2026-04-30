@@ -59,15 +59,16 @@ func cmdMap(args []string) {
 	destCSV := fs.String("destination-csv", "", "destination CSV file with player names and IDs (required)")
 	sourceFolder := fs.String("source-folder", "", "source folder containing player face directories (required)")
 	destFolder := fs.String("dest-folder", "", "destination folder for mapped player faces (required)")
+	skipExisting := fs.Bool("skip-existing", false, "skip mapping when destination ID folder already exists (do not overwrite)")
 	if err := fs.Parse(args); err != nil {
 		os.Exit(1)
 	}
 
 	if *destCSV == "" || *sourceFolder == "" || *destFolder == "" {
-		fmt.Fprintln(os.Stderr, "usage: faces map --destination-csv <file> --source-folder <path> --dest-folder <path> [--source-csv <file>]")
+		fmt.Fprintln(os.Stderr, "usage: faces map --destination-csv <file> --source-folder <path> --dest-folder <path> [--source-csv <file>] [--skip-existing]")
 		fs.PrintDefaults()
 		os.Exit(1)
 	}
 
-	mapFaces(*sourceCSV, *destCSV, *sourceFolder, *destFolder)
+	mapFaces(*sourceCSV, *destCSV, *sourceFolder, *destFolder, *skipExisting)
 }

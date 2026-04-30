@@ -13,7 +13,7 @@ type PlayerMapping struct {
 	DestPlayerID  string
 }
 
-func mapFaces(sourceCSV, destCSV, sourceFolder, destFolder string) {
+func mapFaces(sourceCSV, destCSV, sourceFolder, destFolder string, skipExisting bool) {
 	log.Println("=== Starting Player Face Mapping Tool ===")
 
 	var sourceData []Player
@@ -31,7 +31,7 @@ func mapFaces(sourceCSV, destCSV, sourceFolder, destFolder string) {
 	destData := loadPlayerList(destCSV)
 
 	mapping := getPlayerMapping(sourceData, destData)
-	updateFacesStructure(sourceFolder, destFolder, mapping)
+	updateFacesStructure(sourceFolder, destFolder, mapping, skipExisting)
 
 	log.Println("=== Finished processing successfully ===")
 }
@@ -72,13 +72,17 @@ func getPlayerMapping(sourceData, destData []Player) []PlayerMapping {
 	return mapping
 }
 
-func updateFacesStructure(srcFolder, destFolder string, mapping []PlayerMapping) {
+func updateFacesStructure(srcFolder, destFolder string, mapping []PlayerMapping, skipExisting bool) {
 	log.Printf("Updating faces structure from %s to %s", srcFolder, destFolder)
 	processed := 0
+	skipped := 0
+	lengthMismatched := 0
+	missingSrc := 0
 
 	for _, item := range mapping {
 		// ID length must match for hex replacement to work
 		if len(item.SrcPlayerID) != len(item.DestPlayerID) {
+			lengthMismatched++
 			continue
 		}
 
@@ -92,8 +96,18 @@ func updateFacesStructure(srcFolder, destFolder string, mapping []PlayerMapping)
 		destPath := filepath.Join(destFolder, item.DestPlayerID)
 
 		if _, err := os.Stat(srcPath); os.IsNotExist(err) {
-			log.Printf("Source path does not exist: %s", srcPath)
+			// Common when the source CSV is much larger than the source folder
+			// (e.g. running an identity install with the full game CSV). Counted
+			// rather than logged per-row to keep output usable for those cases.
+			missingSrc++
 			continue
+		}
+
+		if skipExisting {
+			if _, err := os.Stat(destPath); err == nil {
+				skipped++
+				continue
+			}
 		}
 
 		if err := os.MkdirAll(destPath, 0755); err != nil {
@@ -111,7 +125,7 @@ func updateFacesStructure(srcFolder, destFolder string, mapping []PlayerMapping)
 		processed++
 	}
 
-	log.Printf("Successfully processed %d player faces", processed)
+	log.Printf("Successfully processed %d player faces (skipped %d existing, %d length-mismatched, %d source-not-found)", processed, skipped, lengthMismatched, missingSrc)
 }
 
 func hexReplace(filePath, oldID, newID string) {
