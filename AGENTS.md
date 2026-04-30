@@ -8,6 +8,7 @@
 - **Before every commit**, find and run the Makefile in the changed subdirectory (`make all`). Do not skip this.
 - If `git status` shows tracked changes, ask `commit/push?`; on confirm, commit and push.
 - When asked about PES/Football Life mods, patches, or community content, first check the AI Knowledge Base (`~/dev/priv/ai-knowledge-base/wiki/pes/`) for existing research, then check scraped data in `evoweb/data/` for freshness. **If scraped data is older than 1 week, rescrape the relevant evoweb thread before answering.** Update the AIKB article when findings are worth preserving.
+- AIKB notes are concise and punctual: lead with the conclusion, prefer tight bullets and short factual sentences over prose, mark hypotheses once with **Not verified** and move on. No multi-paragraph hedging or redundant restatements.
 - When the task is about the live game install, read the live workspace docs at the game root before doing anything else. For this machine, the current Football Life workspace is `C:\Program Files (x86)\SP Football Life 2026\AGENTS.md` and `README.md`.
 - The canonical gameplay backup root on this machine is `%USERPROFILE%\MEGA\gaming\pes\gameplay\`.
 - If the user gives an explicit install path, treat that path as authoritative. Do not search broader drives or user profile roots unless the user asks or the stated path fails verification.
