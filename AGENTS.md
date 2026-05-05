@@ -55,3 +55,65 @@
   - **Direct ID match:** if the source folder ID literally exists in the destination CSV, copy the folder as-is to `dest-folder/<id>/` -- no hex remap needed.
   - **Source folder rename:** when the live name has fewer parts than the source name (e.g. live `Dion Beljo` vs source `Dion Drena Beljo`), the matcher fails on `len(targetParts) != len(candidateParts)` (`normalize.go:82`). Rename the source folder to match the live name's part count, then rerun. The internal ID inside `face.fpk` still gets remapped correctly.
 - When installing faces to the live install, write a rollback record next to the source archives (e.g. `MEGA/gaming/pes/faces/_INSTALLED_<date>.txt`) listing every dest folder ID and the not-installed reasons. The user can clean up by deleting the listed numeric folders.
+
+## Ubiquitous language
+
+### Archives and game data
+
+| Term | Definition | Aliases to avoid | Notes |
+| ---- | ---------- | ---------------- | ----- |
+| **CPK** | A CRI Middleware archive used by PES and Football Life to package game data. | archive file | |
+| **EDIT save** | The encrypted user save that can contain the active player database when archive Player.bin files are empty or stale. | edit file, option file | Do not treat it as parseable by the repo CPK tool. |
+| **Inner path** | The path of a file inside a CPK archive. | internal path, archive path | Matching is case-insensitive and slash-normalized in the repo tool. |
+| **Load order** | The order in which base archives, patch archives, DLC archives, livecpk roots, and Sider modules override earlier game data. | priority, precedence | State the scope when discussing it. |
+| **Player.bin** | Konami's binary player database stored inside PES archive data. | player DB, players file | Can be empty or superseded in Football Life or BPB installs. |
+| **Table of contents** | The parsed CPK entry list used to list and extract archived files. | TOC | |
+
+### Faces
+
+| Term | Definition | Aliases to avoid | Notes |
+| ---- | ---------- | ---------------- | ----- |
+| **Face folder** | A numeric player-ID directory containing the face assets loaded by the game. | player folder, ID folder | |
+| **Face install** | Copying or remapping a face folder into the live install's configured face root. | face import | Requires a rollback record. |
+| **FPK** | A PES package file inside a face folder that embeds asset paths and the referenced player ID. | face.fpk | Length-sensitive path data makes naive ID replacement unsafe. |
+| **Length mismatch** | A source and destination player ID pair whose decimal string lengths differ. | digit mismatch | Requires an FPK-aware editor, not forced install. |
+| **Orphaned face** | A face folder whose ID does not exist in the active player database. | orphan | |
+| **Player ID** | The numeric identifier that links player database rows to face folders and embedded FPK paths. | face ID | |
+
+### Gameplay and live install
+
+| Term | Definition | Aliases to avoid | Notes |
+| ---- | ---------- | ---------------- | ----- |
+| **dt13** | The gameplay-related CPK component commonly changed by gameplay patches. | dt13 file | Verify by hash before identifying it. |
+| **dt18** | The gameplay-related CPK component commonly changed by gameplay patches. | dt18 file | Verify by hash before identifying it. |
+| **Gameplay stack** | The full set of files, livecpk roots, Sider modules, executable replacements, hooks, and caches affecting gameplay. | gameplay mod, gameplay files | Inventory the whole stack before switching. |
+| **Live install** | The actual PES or Football Life installation currently used for play and verification. | game folder, install path | The user-provided path wins over search. |
+| **SYSTEM cache** | The PES save cache that can preserve gameplay or settings state across file switches. | system file, cache | Remove only as part of an approved switch. |
+| **Vanilla** | A known clean baseline copy of a component from the unmodified install or canonical backup. | default, original | Prefer hash evidence over filename claims. |
+
+### Kits
+
+| Term | Definition | Aliases to avoid | Notes |
+| ---- | ---------- | ---------------- | ----- |
+| **FTEX** | The PES texture container format used by kitserver for kit textures. | ftex file | The converter emits single embedded FTEX files. |
+| **Kit slot** | The numbered player or goalkeeper kit variant selected by kitserver naming. | slot | Valid slot values are tool-specific. |
+| **Kitserver** | The Sider-based kit loading system that maps teams and kit slots to texture folders. | kit loader | Folder scaffolding is separate from texture conversion. |
+| **Pixel format** | The texture compression format stored inside an FTEX. | format | DXT5 is broad compatibility, not necessarily stock-equivalent. |
+
+### Sider and mod loading
+
+| Term | Definition | Aliases to avoid | Notes |
+| ---- | ---------- | ---------------- | ----- |
+| **cpk.root entry** | A Sider config entry that adds a livecpk root to the game data override chain. | cpk root, livecpk entry | |
+| **livecpk root** | A loose-file directory that Sider presents to the game as overrideable CPK content. | livecpk folder | |
+| **lua.module entry** | A Sider config entry that loads a Lua module into the game process. | Lua module, module entry | Treat bundled gameplay modules as part of the gameplay stack. |
+| **Sider** | The PES mod loader that injects modules and loose-file roots into the running game. | sider.ini | `sider.ini` is the config file, not the loader. |
+
+### Web research
+
+| Term | Definition | Aliases to avoid | Notes |
+| ---- | ---------- | ---------------- | ----- |
+| **AI Knowledge Base** | The private PES research wiki checked before answering mod and community-content questions. | AIKB | Update it when findings are worth preserving. |
+| **Evoweb scrape** | A persisted JSON capture of an Evoweb thread or forum listing. | scrape data, scraped JSON | Must be refreshed when stale for the question. |
+| **Forum listing** | A XenForo forum index page used to discover thread URLs and metadata. | forum page | |
+| **Thread** | A XenForo discussion page scraped as posts and metadata. | topic | |
