@@ -210,17 +210,13 @@ function Switch-VanillaComponent {
         Copy-Item $source.Path $targetPath -Force
         Update-TrackingComment -SiderPath $siderPath -Component $component -Value 'vanilla'
 
-        if (Test-Path $systemFile) {
-            Remove-Item $systemFile -Force
-        }
-
         [pscustomobject]@{
             Component = $component
             Source = $source.Path
             Backup = $backupPath
             BeforeHash = $beforeHash
             AfterHash = (Get-Sha256 $targetPath)
-            SystemCache = if (Test-Path $systemFile) { 'present' } else { 'removed' }
+            SystemCache = if (Test-Path $systemFile) { 'present' } else { 'missing' }
         } | Format-List
     }
     finally {

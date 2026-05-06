@@ -19,6 +19,7 @@
 - Before any gameplay switch, inventory the full active gameplay stack, not just `dt18`: `dt13`, `dt18`, gameplay-related `livecpk` roots, gameplay-related `lua.module` entries, exe replacements, hook files, and cache files. Verify each component from file evidence or mod instructions.
 - Never assume a file is unrelated just because it is named like an animation or visual addon. If a mod readme bundles it as part of gameplay, treat it as part of the gameplay stack until proven otherwise.
 - Never perform a partial gameplay switch that leaves a mixed state unless the user explicitly asked for that exact mix.
+- Never delete `SYSTEM00000000` (PES save cache) as part of any install, gameplay switch, or cleanup step. The user always handles cache invalidation manually.
 - Prefer `tools/fl-gameplay.ps1` for recurring live-install gameplay status checks and vanilla `dt13` or `dt18` switches. It keeps the workflow consistent and repo-backed.
 - Scraped JSON data lives in `evoweb/data/`. Use `duckdb` to query it for analysis across large datasets.
 - On Windows, if a command needs elevation, spawn an elevated `pwsh` from the current session instead of stopping. Pattern: `Start-Process -FilePath (Get-Command pwsh.exe).Source -Verb RunAs -Wait -ArgumentList @('-NoProfile','-ExecutionPolicy','Bypass','-File', <script>)` or pass `-Command` instead of `-File`.

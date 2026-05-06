@@ -35,8 +35,10 @@ pwsh -File .\tools\fl-gameplay.ps1 switch-dt18-vanilla
 What it does:
 
 - `status` prints hashes for live `dt13`, `dt18`, and `FL_2026.exe`, the tracking comments from `SiderAddons\sider.ini`, active gameplay-related sider entries, and `SYSTEM` cache presence.
-- `switch-dt13-vanilla` backs up the current live `dt13`, restores the vanilla `dt13` from the canonical gameplay backup root, updates the `sider.ini` tracking comment, and removes the current `SYSTEM` cache file.
+- `switch-dt13-vanilla` backs up the current live `dt13`, restores the vanilla `dt13` from the canonical gameplay backup root, and updates the `sider.ini` tracking comment.
 - `switch-dt18-vanilla` does the same for `dt18`.
+
+`SYSTEM00000000` cache invalidation is intentionally never performed by this tool; the user handles it manually.
 
 The helper prefers loose files under `%USERPROFILE%\MEGA\gaming\pes\gameplay\vanilla\` and falls back to the `dt13 & dt18 vanilla.rar` archive when needed.
 
