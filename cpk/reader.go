@@ -145,6 +145,36 @@ func (r *Reader) load() error {
 		}
 		r.files = append(r.files, file)
 	}
+	// Some PES season packs declare ContentOffset == TocOffset near the file
+	// end so FileOffsets are already absolute. If every entry's computed
+	// Offset+Size would land past EOF but the raw FileOffset would not,
+	// re-add the entries with contentOffset=0.
+	if st, err := r.f.Stat(); err == nil {
+		size := st.Size()
+		needFix := false
+		for _, f := range r.files {
+			if int64(f.Offset)+int64(f.Size) > size {
+				needFix = true
+				break
+			}
+		}
+		if needFix && contentOffset > 0 {
+			ok := true
+			for _, f := range r.files {
+				raw := int64(f.Offset) - contentOffset
+				if raw < 0 || raw+int64(f.Size) > size {
+					ok = false
+					break
+				}
+			}
+			if ok {
+				r.contentOffset = 0
+				for i := range r.files {
+					r.files[i].Offset -= contentOffset
+				}
+			}
+		}
+	}
 	return nil
 }
 

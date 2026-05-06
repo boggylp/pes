@@ -40,7 +40,7 @@
 - Subcommands: `go run . list [-l] <cpk>`, `go run . extract [--file inner-path] [--out path] <cpk>`.
 - `list` prints inner paths; `-l` adds offsets and sizes. `extract` writes one file by inner path or dumps everything to a directory.
 - Inner-path matching is case-insensitive and accepts both `/` and `\`. Players base lives at `common/etc/pesdb/Player.bin` inside `Data/dt00_x64.cpk`; `Data/dt10_x64.cpk` and `download/dt80_*E_x64.cpk` override in load order.
-- BPB 2026 ships `Player.bin` zeroed in both `dt00` and `dt10` (1,751,422 bytes of `00`). Real player data lives in the encrypted EDIT save at `~/Documents/KONAMI/eFootball PES 2021 SEASON UPDATE/<SteamID>/save/EDIT00000000`. The cpk tool does not parse EDIT files; ejogc327's PES Editor or kisni07's PESDatabase do.
+- BPB 2026 ships a real (Konami-encrypted) `Player.bin` in both `dt00` and `dt10` — 1,751,422 bytes, md5 `89938c15...`, identical between the two cpks. EDIT save (`~/Documents/KONAMI/eFootball PES 2021 SEASON UPDATE/2026/save/EDIT00000000`) carries 20 BPB-specific custom adds on top. The cpk tool does not parse EDIT files; ejogc327's PES Editor or kisni07's PESDatabase do.
 
 ### faces (Go)
 
@@ -63,10 +63,10 @@
 | Term | Definition | Aliases to avoid | Notes |
 | ---- | ---------- | ---------------- | ----- |
 | **CPK** | A CRI Middleware archive used by PES and Football Life to package game data. | archive file | |
-| **EDIT save** | The encrypted user save that can contain the active player database when archive Player.bin files are empty or stale. | edit file, option file | Do not treat it as parseable by the repo CPK tool. |
+| **EDIT save** | The encrypted user save that carries custom adds and edits on top of the archive Player.bin baseline. | edit file, option file | Do not treat it as parseable by the repo CPK tool. |
 | **Inner path** | The path of a file inside a CPK archive. | internal path, archive path | Matching is case-insensitive and slash-normalized in the repo tool. |
 | **Load order** | The order in which base archives, patch archives, DLC archives, livecpk roots, and Sider modules override earlier game data. | priority, precedence | State the scope when discussing it. |
-| **Player.bin** | Konami's binary player database stored inside PES archive data. | player DB, players file | Can be empty or superseded in Football Life or BPB installs. |
+| **Player.bin** | Konami's binary player database stored inside PES archive data, encrypted at-rest with a per-version key. | player DB, players file | BPB and FL26 ship distinct Player.bin bytes; EDIT save carries custom adds on top. |
 | **Table of contents** | The parsed CPK entry list used to list and extract archived files. | TOC | |
 
 ### Faces

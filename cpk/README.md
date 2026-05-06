@@ -33,10 +33,8 @@ The matcher used by `--file` is case-insensitive and accepts both forward and ba
 
 In a vanilla PES 2021 install Konami's player base is at `common/etc/pesdb/Player.bin` inside `Data/dt00_x64.cpk` (the base game data) and is overridden by `Data/dt10_x64.cpk` and the DLC `download/dt80_*E_x64.cpk` packs in load order.
 
-In the BPB 2026 install on this machine both `dt00_x64.cpk` and `dt10_x64.cpk` ship a fully-zeroed `Player.bin` (1,751,422 bytes, all `00`). The actual player database lives in the EDIT save file at:
+The file is encrypted at-rest with Konami's pesdb key. The cpk tool extracts the raw encrypted bytes; decryption is handled by external editors (ejogc327's PES 2020 Editor, kisni07's PESDatabase) which apply Konami's key on load. See `wiki/pes/bpb-2026.md` in the AI knowledge base for the BPB 2026 / FL26 specifics.
 
-```
-~/Documents/KONAMI/eFootball PES 2021 SEASON UPDATE/<SteamID>/save/EDIT00000000
-```
+## ContentOffset normalisation
 
-That file is encrypted and out of scope for this tool — see `wiki/pes/bpb-2026.md` in the AI knowledge base for the full picture.
+Modern PES season packs (e.g. FL26's `download/data_s2526*.cpk`, BPB's `Data/dt*.cpk`) put the TOC at the end of the file with `ContentOffset == TocOffset` and store FileOffsets as absolute. The reader detects this case (any computed offset would land past EOF) and re-bases entries with `contentOffset=0`. Without this fix the tool silently extracts zero bytes from past-EOF reads — the symptom that masked real `Player.bin` data as "zero-filled" before 2026-05-06.
