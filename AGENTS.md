@@ -41,7 +41,16 @@
 - Subcommands: `go run . list [-l] <cpk>`, `go run . extract [--file inner-path] [--out path] <cpk>`.
 - `list` prints inner paths; `-l` adds offsets and sizes. `extract` writes one file by inner path or dumps everything to a directory.
 - Inner-path matching is case-insensitive and accepts both `/` and `\`. Players base lives at `common/etc/pesdb/Player.bin` inside `Data/dt00_x64.cpk`; `Data/dt10_x64.cpk` and `download/dt80_*E_x64.cpk` override in load order.
-- BPB 2026 ships a real (Konami-encrypted) `Player.bin` in both `dt00` and `dt10` — 1,751,422 bytes, md5 `89938c15...`, identical between the two cpks. EDIT save (`~/Documents/KONAMI/eFootball PES 2021 SEASON UPDATE/2026/save/EDIT00000000`) carries 20 BPB-specific custom adds on top. The cpk tool does not parse EDIT files; ejogc327's PES Editor or kisni07's PESDatabase do.
+- BPB 2026 ships a real `Player.bin` in both `dt00` and `dt10` — 1,751,422 bytes, md5 `89938c15...`, identical between the two cpks. EDIT save (`~/Documents/KONAMI/eFootball PES 2021 SEASON UPDATE/2026/save/EDIT00000000`) carries 20 BPB-specific custom adds on top. Pesdb files are not encrypted; they're a `\xff\x10\x81WESYS` + zlib envelope. Use the repo's `pesdb` tool (`pesdb roster --player-bin ... --edit data.dat --out csv`) to merge the base + EDIT adds into a final Id;Name;Shirt CSV. EDIT save decryption still requires ejogc327's `decrypter21.exe`.
+
+### pesdb (Go)
+
+- PES 2021 player roster extractor. Build: `go build .` from `pesdb/`.
+- Subcommand: `pesdb roster --player-bin <Player.bin> --out <csv> [--edit <data.dat>]`.
+- Input `Player.bin` comes from the repo's `cpk extract --file common/etc/pesdb/Player.bin <some.cpk>`.
+- Optional `--edit` is the decrypted output of ejogc327's `decrypter21.exe` against an `EDIT00000000` save (the file is `data.dat` inside the decrypter's output directory).
+- Pesdb files inside cpks are zlib-wrapped, not encrypted. Front ~2 KB is opaque; magic `\xff\x10\x81WESYS` sits past that, followed by 8 bytes of size metadata and a zlib stream. After decompression, records are 312 bytes each: Id at `+0x08`, name at `+0x44`, shirt at `+0x81` (Player.bin format). EDIT save data.dat uses the same stride but Id at `+0x0C`, name at `+0x42`, shirt at `+0x7F`, starting at file offset 112.
+- Earlier "Player.bin is encrypted" / "zero-filled" claims were both wrong; the first was caused by reading only the opaque front section, the second by an offset bug in the cpk tool (fixed 2026-05-06).
 
 ### faces (Go)
 

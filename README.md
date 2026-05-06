@@ -8,6 +8,7 @@ Pro Evolution Soccer / SP Football Life related utilities.
 cpk/        CRI Middleware CPK archive reader (Go)
 evoweb/     XenForo forum scraper (Go)
 faces/      Player face mapping and mismatch detection (Go)
+pesdb/      PES 2021 player roster extractor (Go)
 tools/      Local Windows helpers for PES and Football Life workflows
 ```
 
@@ -144,6 +145,37 @@ go run . map \
   --source-folder /path/to/source/faces \
   --dest-folder /path/to/destination/faces
 ```
+
+## pesdb
+
+PES 2021 player roster extractor. Reads a `Player.bin` extracted from a cpk and emits an `Id;Name;Shirt` CSV. Optionally merges a decrypted EDIT save's `data.dat`.
+
+### Build
+
+```sh
+cd pesdb
+go build .
+```
+
+### Usage
+
+```sh
+# 1. Extract Player.bin from the game's cpk (see cpk section below)
+./cpk/cpk extract --file common/etc/pesdb/Player.bin \
+  --out /tmp/Player.bin \
+  "/d/SteamLibrary/steamapps/common/eFootball PES 2021/Data/dt10_x64.cpk"
+
+# 2. Optional: decrypt the EDIT save (ejogc327's decrypter21.exe)
+"/d/apps/Pes 2020 Editor V0.12.10 by Ejogc327/Lib/decrypter21.exe" \
+  "$USERPROFILE/Documents/KONAMI/eFootball PES 2021 SEASON UPDATE/2026/save/EDIT00000000" \
+  /tmp/edit-out
+
+# 3. Build the roster CSV (base only, then base + EDIT-save adds merged)
+./pesdb/pesdb roster --player-bin /tmp/Player.bin --out roster.csv
+./pesdb/pesdb roster --player-bin /tmp/Player.bin --edit /tmp/edit-out/data.dat --out roster.csv
+```
+
+See `pesdb/README.md` for the pesdb container format and record layout details.
 
 ## cpk
 
