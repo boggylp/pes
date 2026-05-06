@@ -1,10 +1,14 @@
 package main
 
 import (
+	"bytes"
+	"io"
 	"log"
 	"os"
 	"path/filepath"
-	"strings"
+	"runtime"
+	"sync"
+	"sync/atomic"
 )
 
 type PlayerMapping struct {
@@ -74,108 +78,162 @@ func getPlayerMapping(sourceData, destData []Player) []PlayerMapping {
 
 func updateFacesStructure(srcFolder, destFolder string, mapping []PlayerMapping, skipExisting bool) {
 	log.Printf("Updating faces structure from %s to %s", srcFolder, destFolder)
-	processed := 0
-	skipped := 0
-	lengthMismatched := 0
-	missingSrc := 0
+
+	var processed, skipped, lengthMismatched, missingSrc, errors int64
+
+	// Buffered channel as a work queue; workers consume items in parallel.
+	// Disk I/O dominates each iteration, so 2× CPU is a reasonable default.
+	workers := runtime.NumCPU() * 2
+	if workers < 4 {
+		workers = 4
+	}
+	ch := make(chan PlayerMapping, workers*2)
+	var wg sync.WaitGroup
+
+	for i := 0; i < workers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for item := range ch {
+				switch processOne(srcFolder, destFolder, item, skipExisting) {
+				case resultProcessed:
+					atomic.AddInt64(&processed, 1)
+				case resultSkippedExisting:
+					atomic.AddInt64(&skipped, 1)
+				case resultMissingSrc:
+					atomic.AddInt64(&missingSrc, 1)
+				case resultError:
+					atomic.AddInt64(&errors, 1)
+				}
+			}
+		}()
+	}
 
 	for _, item := range mapping {
-		// ID length must match for hex replacement to work
+		// ID length must match for hex replacement to work; checked on the
+		// dispatcher side so length-mismatch counting stays single-threaded.
 		if len(item.SrcPlayerID) != len(item.DestPlayerID) {
 			lengthMismatched++
 			continue
 		}
-
-		pathDirect := filepath.Join(srcFolder, item.SrcPlayerID)
-		pathNested := filepath.Join(srcFolder, item.SrcPlayerName, item.SrcPlayerID)
-		srcPath := pathDirect
-		if _, err := os.Stat(pathDirect); os.IsNotExist(err) {
-			srcPath = pathNested
-		}
-
-		destPath := filepath.Join(destFolder, item.DestPlayerID)
-
-		if _, err := os.Stat(srcPath); os.IsNotExist(err) {
-			// Common when the source CSV is much larger than the source folder
-			// (e.g. running an identity install with the full game CSV). Counted
-			// rather than logged per-row to keep output usable for those cases.
-			missingSrc++
-			continue
-		}
-
-		if skipExisting {
-			if _, err := os.Stat(destPath); err == nil {
-				skipped++
-				continue
-			}
-		}
-
-		if err := os.MkdirAll(destPath, 0755); err != nil {
-			log.Printf("Error creating directory %s: %v", destPath, err)
-			continue
-		}
-
-		if err := copyDir(srcPath, destPath); err != nil {
-			log.Printf("Error copying %s to %s: %v", srcPath, destPath, err)
-			continue
-		}
-
-		fpkPath := filepath.Join(destPath, "#Win", "face.fpk")
-		hexReplace(fpkPath, item.SrcPlayerID, item.DestPlayerID)
-		processed++
+		ch <- item
 	}
+	close(ch)
+	wg.Wait()
 
-	log.Printf("Successfully processed %d player faces (skipped %d existing, %d length-mismatched, %d source-not-found)", processed, skipped, lengthMismatched, missingSrc)
+	log.Printf("Successfully processed %d player faces (skipped %d existing, %d length-mismatched, %d source-not-found, %d errors)",
+		processed, skipped, lengthMismatched, missingSrc, errors)
 }
 
-func hexReplace(filePath, oldID, newID string) {
-	if _, err := os.Stat(filePath); os.IsNotExist(err) {
-		log.Printf("File does not exist, skipping hex replace: %s", filePath)
-		return
+type processResult int
+
+const (
+	resultProcessed processResult = iota
+	resultSkippedExisting
+	resultMissingSrc
+	resultError
+)
+
+func processOne(srcFolder, destFolder string, item PlayerMapping, skipExisting bool) processResult {
+	pathDirect := filepath.Join(srcFolder, item.SrcPlayerID)
+	pathNested := filepath.Join(srcFolder, item.SrcPlayerName, item.SrcPlayerID)
+	srcPath := pathDirect
+	if _, err := os.Stat(pathDirect); os.IsNotExist(err) {
+		srcPath = pathNested
 	}
 
+	destPath := filepath.Join(destFolder, item.DestPlayerID)
+
+	if _, err := os.Stat(srcPath); os.IsNotExist(err) {
+		// Common when the source CSV is much larger than the source folder
+		// (e.g. running an identity install with the full game CSV). Counted
+		// rather than logged per-row to keep output usable for those cases.
+		return resultMissingSrc
+	}
+
+	if skipExisting {
+		if _, err := os.Stat(destPath); err == nil {
+			return resultSkippedExisting
+		}
+	}
+
+	if err := os.MkdirAll(destPath, 0o755); err != nil {
+		log.Printf("Error creating directory %s: %v", destPath, err)
+		return resultError
+	}
+
+	if err := copyDir(srcPath, destPath); err != nil {
+		log.Printf("Error copying %s to %s: %v", srcPath, destPath, err)
+		return resultError
+	}
+
+	fpkPath := filepath.Join(destPath, "#Win", "face.fpk")
+	if err := hexReplace(fpkPath, item.SrcPlayerID, item.DestPlayerID); err != nil {
+		log.Printf("Error hex-replacing %s: %v", fpkPath, err)
+		return resultError
+	}
+	return resultProcessed
+}
+
+// hexReplace rewrites every literal occurrence of oldID with newID inside the
+// file at filePath. The two IDs must have equal byte length (the caller is
+// responsible) so the file size stays the same and the FPK's length-prefixed
+// path table is not corrupted.
+func hexReplace(filePath, oldID, newID string) error {
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+		// Some source folders ship without a face.fpk (textures only); skip silently.
+		return nil
+	}
 	data, err := os.ReadFile(filePath)
 	if err != nil {
-		log.Printf("Error reading %s: %v", filePath, err)
-		return
+		return err
 	}
-
-	data = []byte(strings.ReplaceAll(string(data), oldID, newID))
-
-	if err := os.WriteFile(filePath, data, 0644); err != nil {
-		log.Printf("Error writing %s: %v", filePath, err)
-		return
+	if !bytes.Contains(data, []byte(oldID)) {
+		return nil
 	}
-	log.Printf("Hex replaced in %s: %s -> %s", filePath, oldID, newID)
+	data = bytes.ReplaceAll(data, []byte(oldID), []byte(newID))
+	return os.WriteFile(filePath, data, 0o644)
 }
 
+// copyDir mirrors src into dst recursively. Files are streamed via io.Copy so
+// large textures don't have to fit fully in memory.
 func copyDir(src, dst string) error {
 	entries, err := os.ReadDir(src)
 	if err != nil {
 		return err
 	}
-
 	for _, entry := range entries {
 		srcPath := filepath.Join(src, entry.Name())
 		dstPath := filepath.Join(dst, entry.Name())
-
 		if entry.IsDir() {
-			if err := os.MkdirAll(dstPath, 0755); err != nil {
+			if err := os.MkdirAll(dstPath, 0o755); err != nil {
 				return err
 			}
 			if err := copyDir(srcPath, dstPath); err != nil {
 				return err
 			}
-		} else {
-			data, err := os.ReadFile(srcPath)
-			if err != nil {
-				return err
-			}
-			if err := os.WriteFile(dstPath, data, 0644); err != nil {
-				return err
-			}
+			continue
+		}
+		if err := copyFile(srcPath, dstPath); err != nil {
+			return err
 		}
 	}
-
 	return nil
+}
+
+func copyFile(src, dst string) error {
+	in, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+	out, err := os.OpenFile(dst, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o644)
+	if err != nil {
+		return err
+	}
+	if _, err := io.Copy(out, in); err != nil {
+		out.Close()
+		return err
+	}
+	return out.Close()
 }
