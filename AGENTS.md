@@ -76,7 +76,7 @@
 | **EDIT save** | The encrypted user save that carries custom adds and edits on top of the archive Player.bin baseline. | edit file, option file | Do not treat it as parseable by the repo CPK tool. |
 | **Inner path** | The path of a file inside a CPK archive. | internal path, archive path | Matching is case-insensitive and slash-normalized in the repo tool. |
 | **Load order** | The order in which base archives, patch archives, DLC archives, livecpk roots, and Sider modules override earlier game data. | priority, precedence | State the scope when discussing it. |
-| **Player.bin** | Konami's binary player database stored inside PES archive data, encrypted at-rest with a per-version key. | player DB, players file | BPB and FL26 ship distinct Player.bin bytes; EDIT save carries custom adds on top. |
+| **Player.bin** | Konami's binary player database stored inside PES archive data, packaged as a WESYS+zlib envelope. | player DB, players file | BPB and FL26 ship distinct Player.bin bytes; EDIT save carries custom adds on top. Decode with the repo's `pesdb` tool. |
 | **Table of contents** | The parsed CPK entry list used to list and extract archived files. | TOC | |
 
 ### Faces
