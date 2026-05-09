@@ -15,6 +15,7 @@
 - Evidence-first only: do not propose gameplay reset or install steps until the exact active files are verified from the live install, at minimum `SiderAddons\sider.ini`, relevant `Data\dt13/dt18` files, backups, and archive contents or source-thread instructions.
 - Canonical reference for sider config (section layout, `lua.module` entries, livecpk roots, cache behavior): SOK Unleashed v9 thread at `https://evoweb.uk/threads/soulsofkaos-unleashed-9-pes2013.101010/`. Check it before advising on any sider.ini change.
 - Prefer file hashes over filename assumptions when identifying which gameplay is currently installed.
+- For alexfe87 gameplay, distinguish the DT18 release version from the Lua module version: say `dt18_v4` for the May 2026 DT18 release, and `GamePlay-v2.lua` only for the separate required Lua module.
 - For live Football Life/PES installs, do not make gameplay or config changes after verification unless the user explicitly approves the install/change step.
 - Before any gameplay switch, inventory the full active gameplay stack, not just `dt18`: `dt13`, `dt18`, gameplay-related `livecpk` roots, gameplay-related `lua.module` entries, exe replacements, hook files, and cache files. Verify each component from file evidence or mod instructions.
 - Never assume a file is unrelated just because it is named like an animation or visual addon. If a mod readme bundles it as part of gameplay, treat it as part of the gameplay stack until proven otherwise.
@@ -70,61 +71,61 @@
 
 ### Archives and game data
 
-| Term | Definition | Aliases to avoid | Notes |
-| ---- | ---------- | ---------------- | ----- |
-| **CPK** | A CRI Middleware archive used by PES and Football Life to package game data. | archive file | |
-| **EDIT save** | The encrypted user save that carries custom adds and edits on top of the archive Player.bin baseline. | edit file, option file | Do not treat it as parseable by the repo CPK tool. |
-| **Inner path** | The path of a file inside a CPK archive. | internal path, archive path | Matching is case-insensitive and slash-normalized in the repo tool. |
-| **Load order** | The order in which base archives, patch archives, DLC archives, livecpk roots, and Sider modules override earlier game data. | priority, precedence | State the scope when discussing it. |
-| **Player.bin** | Konami's binary player database stored inside PES archive data, packaged as a WESYS+zlib envelope. | player DB, players file | BPB and FL26 ship distinct Player.bin bytes; EDIT save carries custom adds on top. Decode with the repo's `pesdb` tool. |
-| **Table of contents** | The parsed CPK entry list used to list and extract archived files. | TOC | |
+| Term                  | Definition                                                                                                                   | Aliases to avoid            | Notes                                                                                                                   |
+| --------------------- | ---------------------------------------------------------------------------------------------------------------------------- | --------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| **CPK**               | A CRI Middleware archive used by PES and Football Life to package game data.                                                 | archive file                |                                                                                                                         |
+| **EDIT save**         | The encrypted user save that carries custom adds and edits on top of the archive Player.bin baseline.                        | edit file, option file      | Do not treat it as parseable by the repo CPK tool.                                                                      |
+| **Inner path**        | The path of a file inside a CPK archive.                                                                                     | internal path, archive path | Matching is case-insensitive and slash-normalized in the repo tool.                                                     |
+| **Load order**        | The order in which base archives, patch archives, DLC archives, livecpk roots, and Sider modules override earlier game data. | priority, precedence        | State the scope when discussing it.                                                                                     |
+| **Player.bin**        | Konami's binary player database stored inside PES archive data, packaged as a WESYS+zlib envelope.                           | player DB, players file     | BPB and FL26 ship distinct Player.bin bytes; EDIT save carries custom adds on top. Decode with the repo's `pesdb` tool. |
+| **Table of contents** | The parsed CPK entry list used to list and extract archived files.                                                           | TOC                         |                                                                                                                         |
 
 ### Faces
 
-| Term | Definition | Aliases to avoid | Notes |
-| ---- | ---------- | ---------------- | ----- |
-| **Face folder** | A numeric player-ID directory containing the face assets loaded by the game. | player folder, ID folder | |
-| **Face install** | Copying or remapping a face folder into the live install's configured face root. | face import | Requires a rollback record. |
-| **FPK** | A PES package file inside a face folder that embeds asset paths and the referenced player ID. | face.fpk | Length-sensitive path data makes naive ID replacement unsafe. |
-| **Length mismatch** | A source and destination player ID pair whose decimal string lengths differ. | digit mismatch | Requires an FPK-aware editor, not forced install. |
-| **Orphaned face** | A face folder whose ID does not exist in the active player database. | orphan | |
-| **Player ID** | The numeric identifier that links player database rows to face folders and embedded FPK paths. | face ID | |
+| Term                | Definition                                                                                     | Aliases to avoid         | Notes                                                         |
+| ------------------- | ---------------------------------------------------------------------------------------------- | ------------------------ | ------------------------------------------------------------- |
+| **Face folder**     | A numeric player-ID directory containing the face assets loaded by the game.                   | player folder, ID folder |                                                               |
+| **Face install**    | Copying or remapping a face folder into the live install's configured face root.               | face import              | Requires a rollback record.                                   |
+| **FPK**             | A PES package file inside a face folder that embeds asset paths and the referenced player ID.  | face.fpk                 | Length-sensitive path data makes naive ID replacement unsafe. |
+| **Length mismatch** | A source and destination player ID pair whose decimal string lengths differ.                   | digit mismatch           | Requires an FPK-aware editor, not forced install.             |
+| **Orphaned face**   | A face folder whose ID does not exist in the active player database.                           | orphan                   |                                                               |
+| **Player ID**       | The numeric identifier that links player database rows to face folders and embedded FPK paths. | face ID                  |                                                               |
 
 ### Gameplay and live install
 
-| Term | Definition | Aliases to avoid | Notes |
-| ---- | ---------- | ---------------- | ----- |
-| **dt13** | The gameplay-related CPK component commonly changed by gameplay patches. | dt13 file | Verify by hash before identifying it. |
-| **dt18** | The gameplay-related CPK component commonly changed by gameplay patches. | dt18 file | Verify by hash before identifying it. |
-| **Effective gameplay** | The gameplay behavior that should win after applying load order, not merely every gameplay-related component installed or wired. | installed combo | State both when they differ. |
-| **Gameplay stack** | The full set of files, livecpk roots, Sider modules, executable replacements, hooks, and caches affecting gameplay. | gameplay mod, gameplay files | Inventory the whole stack before switching. |
-| **Live install** | The actual PES or Football Life installation currently used for play and verification. | game folder, install path | The user-provided path wins over search. |
-| **SYSTEM cache** | The PES save cache that can preserve gameplay or settings state across file switches. | system file, cache | Remove only as part of an approved switch. |
-| **Vanilla** | A known clean baseline copy of a component from the active game or patch. | default, original | For BPB, vanilla means BPB stock unless explicitly qualified as Konami vanilla. Prefer hash evidence over filename claims. |
+| Term                   | Definition                                                                                                                       | Aliases to avoid             | Notes                                                                                                                      |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------- | ---------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| **dt13**               | The gameplay-related CPK component commonly changed by gameplay patches.                                                         | dt13 file                    | Verify by hash before identifying it.                                                                                      |
+| **dt18**               | The gameplay-related CPK component commonly changed by gameplay patches.                                                         | dt18 file                    | Verify by hash before identifying it.                                                                                      |
+| **Effective gameplay** | The gameplay behavior that should win after applying load order, not merely every gameplay-related component installed or wired. | installed combo              | State both when they differ.                                                                                               |
+| **Gameplay stack**     | The full set of files, livecpk roots, Sider modules, executable replacements, hooks, and caches affecting gameplay.              | gameplay mod, gameplay files | Inventory the whole stack before switching.                                                                                |
+| **Live install**       | The actual PES or Football Life installation currently used for play and verification.                                           | game folder, install path    | The user-provided path wins over search.                                                                                   |
+| **SYSTEM cache**       | The PES save cache that can preserve gameplay or settings state across file switches.                                            | system file, cache           | Remove only as part of an approved switch.                                                                                 |
+| **Vanilla**            | A known clean baseline copy of a component from the active game or patch.                                                        | default, original            | For BPB, vanilla means BPB stock unless explicitly qualified as Konami vanilla. Prefer hash evidence over filename claims. |
 
 ### Kits
 
-| Term | Definition | Aliases to avoid | Notes |
-| ---- | ---------- | ---------------- | ----- |
-| **FTEX** | The PES texture container format used by kitserver for kit textures. | ftex file | The converter emits single embedded FTEX files. |
-| **Kit slot** | The numbered player or goalkeeper kit variant selected by kitserver naming. | slot | Valid slot values are tool-specific. |
-| **Kitserver** | The Sider-based kit loading system that maps teams and kit slots to texture folders. | kit loader | Folder scaffolding is separate from texture conversion. |
-| **Pixel format** | The texture compression format stored inside an FTEX. | format | DXT5 is broad compatibility, not necessarily stock-equivalent. |
+| Term             | Definition                                                                           | Aliases to avoid | Notes                                                          |
+| ---------------- | ------------------------------------------------------------------------------------ | ---------------- | -------------------------------------------------------------- |
+| **FTEX**         | The PES texture container format used by kitserver for kit textures.                 | ftex file        | The converter emits single embedded FTEX files.                |
+| **Kit slot**     | The numbered player or goalkeeper kit variant selected by kitserver naming.          | slot             | Valid slot values are tool-specific.                           |
+| **Kitserver**    | The Sider-based kit loading system that maps teams and kit slots to texture folders. | kit loader       | Folder scaffolding is separate from texture conversion.        |
+| **Pixel format** | The texture compression format stored inside an FTEX.                                | format           | DXT5 is broad compatibility, not necessarily stock-equivalent. |
 
 ### Sider and mod loading
 
-| Term | Definition | Aliases to avoid | Notes |
-| ---- | ---------- | ---------------- | ----- |
-| **cpk.root entry** | A Sider config entry that adds a livecpk root to the game data override chain. | cpk root, livecpk entry | |
-| **livecpk root** | A loose-file directory that Sider presents to the game as overrideable CPK content. | livecpk folder | |
-| **lua.module entry** | A Sider config entry that loads a Lua module into the game process. | Lua module, module entry | Treat bundled gameplay modules as part of the gameplay stack. |
-| **Sider** | The PES mod loader that injects modules and loose-file roots into the running game. | sider.ini | `sider.ini` is the config file, not the loader. |
+| Term                 | Definition                                                                          | Aliases to avoid         | Notes                                                         |
+| -------------------- | ----------------------------------------------------------------------------------- | ------------------------ | ------------------------------------------------------------- |
+| **cpk.root entry**   | A Sider config entry that adds a livecpk root to the game data override chain.      | cpk root, livecpk entry  |                                                               |
+| **livecpk root**     | A loose-file directory that Sider presents to the game as overrideable CPK content. | livecpk folder           |                                                               |
+| **lua.module entry** | A Sider config entry that loads a Lua module into the game process.                 | Lua module, module entry | Treat bundled gameplay modules as part of the gameplay stack. |
+| **Sider**            | The PES mod loader that injects modules and loose-file roots into the running game. | sider.ini                | `sider.ini` is the config file, not the loader.               |
 
 ### Web research
 
-| Term | Definition | Aliases to avoid | Notes |
-| ---- | ---------- | ---------------- | ----- |
-| **AI Knowledge Base** | The private PES research wiki checked before answering mod and community-content questions. | AIKB | Update it when findings are worth preserving. |
-| **Evoweb scrape** | A persisted JSON capture of an Evoweb thread or forum listing. | scrape data, scraped JSON | Must be refreshed when stale for the question. |
-| **Forum listing** | A XenForo forum index page used to discover thread URLs and metadata. | forum page | |
-| **Thread** | A XenForo discussion page scraped as posts and metadata. | topic | |
+| Term                  | Definition                                                                                  | Aliases to avoid          | Notes                                          |
+| --------------------- | ------------------------------------------------------------------------------------------- | ------------------------- | ---------------------------------------------- |
+| **AI Knowledge Base** | The private PES research wiki checked before answering mod and community-content questions. | AIKB                      | Update it when findings are worth preserving.  |
+| **Evoweb scrape**     | A persisted JSON capture of an Evoweb thread or forum listing.                              | scrape data, scraped JSON | Must be refreshed when stale for the question. |
+| **Forum listing**     | A XenForo forum index page used to discover thread URLs and metadata.                       | forum page                |                                                |
+| **Thread**            | A XenForo discussion page scraped as posts and metadata.                                    | topic                     |                                                |
