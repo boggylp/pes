@@ -96,10 +96,11 @@
 | ---- | ---------- | ---------------- | ----- |
 | **dt13** | The gameplay-related CPK component commonly changed by gameplay patches. | dt13 file | Verify by hash before identifying it. |
 | **dt18** | The gameplay-related CPK component commonly changed by gameplay patches. | dt18 file | Verify by hash before identifying it. |
+| **Effective gameplay** | The gameplay behavior that should win after applying load order, not merely every gameplay-related component installed or wired. | installed combo | State both when they differ. |
 | **Gameplay stack** | The full set of files, livecpk roots, Sider modules, executable replacements, hooks, and caches affecting gameplay. | gameplay mod, gameplay files | Inventory the whole stack before switching. |
 | **Live install** | The actual PES or Football Life installation currently used for play and verification. | game folder, install path | The user-provided path wins over search. |
 | **SYSTEM cache** | The PES save cache that can preserve gameplay or settings state across file switches. | system file, cache | Remove only as part of an approved switch. |
-| **Vanilla** | A known clean baseline copy of a component from the unmodified install or canonical backup. | default, original | Prefer hash evidence over filename claims. |
+| **Vanilla** | A known clean baseline copy of a component from the active game or patch. | default, original | For BPB, vanilla means BPB stock unless explicitly qualified as Konami vanilla. Prefer hash evidence over filename claims. |
 
 ### Kits
 
