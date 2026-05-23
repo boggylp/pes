@@ -1,6 +1,6 @@
 ---
 name: pes-faces-install
-description: '**Invoke this skill BEFORE installing, mapping, or detecting player faces for the live Football Life 2026 install.** Covers the `faces/` Go tool (`detect` for orphan / ID-mismatch scans, `map` for cross-version remapping), the live player database at `C:\Program Files (x86)\SP Football Life 2026\FL2621_players.txt` and the CSV conversion formula, the destination at `C:\Program Files (x86)\SP Football Life 2026\SiderAddons\livecpk\root\Asset\model\character\face\real\<player_id>\`, the silently-dropped length-mismatch behavior in `map.go:81`, the salvage techniques for near-misses (direct-ID match, source folder rename), and the mandatory rollback record. Triggers: "install these faces", "map BPB faces to FL26", "remap player IDs", "find orphan faces", "fix face mismatches".'
+description: '**Invoke this skill BEFORE installing, mapping, or detecting player faces for the live Football Life 2026 install.** Covers the `faces/` Go tool (`detect` for orphan / ID-mismatch scans, `map` for cross-version remapping), the live player database at `C:\Program Files (x86)\SP Football Life 2026\FL26_players.txt` and the CSV conversion formula, the destination at `C:\Program Files (x86)\SP Football Life 2026\SiderAddons\livecpk\root\Asset\model\character\face\real\<player_id>\`, the silently-dropped length-mismatch behavior in `map.go:81`, the salvage techniques for near-misses (direct-ID match, source folder rename), and the mandatory rollback record. Triggers: "install these faces", "map BPB faces to FL26", "remap player IDs", "find orphan faces", "fix face mismatches".'
 ---
 
 # PES face install
@@ -18,7 +18,7 @@ Faces are the easiest mod to install wrong: silent drops on length mismatch, eas
 1. **Convert the live player DB to the tool's CSV format.** The live file is `<ID> - <Name>` with CRLF; the tool expects semicolon CSV with header `Id;Name`:
 
     ```sh
-    tr -d '\r' < "/c/Program Files (x86)/SP Football Life 2026/FL2621_players.txt" \
+    tr -d '\r' < "/c/Program Files (x86)/SP Football Life 2026/FL26_players.txt" \
       | sed '1iId;Name' \
       | sed 's/ - /;/' > /tmp/fl26-players.csv
     ```
