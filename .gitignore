@@ -29,4 +29,6 @@ data/
 
 # Env
 .env
-.claude/
+
+.claude/*
+!.claude/skills/
