@@ -25,6 +25,8 @@ func main() {
 		cmdScrape(os.Args[2:])
 	case "forum":
 		cmdForum(os.Args[2:])
+	case "search":
+		cmdSearch(os.Args[2:])
 	default:
 		printUsage()
 		os.Exit(1)
