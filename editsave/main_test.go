@@ -116,15 +116,30 @@ func TestVerdict(t *testing.T) {
 
 func TestEnsureSafeOutFileRejectsExisting(t *testing.T) {
 	dir := t.TempDir()
-	f := filepath.Join(dir, "EDIT00000000")
+	// Use a name that is NOT the canonical live-save name; --allow-live-name
+	// is exercised by its own dedicated test.
+	f := filepath.Join(dir, "out.EDIT")
 	if err := os.WriteFile(f, []byte("existing"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if err := ensureSafeOutFile(f, false); err == nil {
+	if err := ensureSafeOutFile(f, false, false); err == nil {
 		t.Fatal("expected refusal when target exists and --force is off")
 	}
-	if err := ensureSafeOutFile(f, true); err != nil {
+	if err := ensureSafeOutFile(f, true, false); err != nil {
 		t.Fatalf("--force should allow overwrite, got %v", err)
+	}
+}
+
+func TestEnsureSafeOutFileRefusesLiveSaveName(t *testing.T) {
+	dir := t.TempDir()
+	f := filepath.Join(dir, "EDIT00000000")
+	// File doesn't even exist yet — refusal is solely on the basename.
+	err := ensureSafeOutFile(f, true, false)
+	if err == nil || !strings.Contains(err.Error(), "live-name") {
+		t.Fatalf("expected live-name refusal even with --force, got %v", err)
+	}
+	if err := ensureSafeOutFile(f, true, true); err != nil {
+		t.Fatalf("--allow-live-name should permit, got %v", err)
 	}
 }
 
