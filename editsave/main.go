@@ -15,12 +15,16 @@ import (
 const usage = `usage: editsave <command> [flags]
 
 commands:
-  decrypt        --tools-dir DIR --out DIR INPUT              wrap decrypter21.exe
-  encrypt        --tools-dir DIR --out FILE INPUT_DIR         wrap encrypter21.exe
-  roundtrip      --tools-dir DIR INPUT                        decrypt then re-encrypt, compare
-  apply-tactics  --tools-dir DIR --tactics-dir DIR --id-list FILE --out FILE INPUT
-                                                              decrypt, write Klashman/Zlac tactics into the team-tactics
-                                                              section of data.dat, re-encrypt
+  decrypt           --tools-dir DIR --out DIR INPUT              wrap decrypter21.exe
+  encrypt           --tools-dir DIR --out FILE INPUT_DIR         wrap encrypter21.exe
+  roundtrip         --tools-dir DIR INPUT                        decrypt then re-encrypt, compare
+  apply-tactics     --tools-dir DIR --tactics-dir DIR --id-list FILE --out FILE INPUT
+                                                                 decrypt, write Klashman/Zlac tactics into the team-tactics
+                                                                 section of data.dat, re-encrypt
+  reset-squad-order --tools-dir DIR --out FILE INPUT             decrypt, reset every team's 32-byte squad-order array to
+                                                                 identity (FL26 default), re-encrypt. Use after apply-tactics
+                                                                 to strip the source save's permutation that references the
+                                                                 wrong squad indices for the target install.
 `
 
 func main() {
@@ -37,6 +41,8 @@ func main() {
 		os.Exit(cmdRoundtrip(os.Args[2:]))
 	case "apply-tactics":
 		os.Exit(cmdApplyTactics(os.Args[2:]))
+	case "reset-squad-order":
+		os.Exit(cmdResetSquadOrder(os.Args[2:]))
 	case "-h", "--help", "help":
 		fmt.Print(usage)
 		os.Exit(0)
