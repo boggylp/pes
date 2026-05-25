@@ -20,7 +20,7 @@
 - Before any gameplay switch, inventory the full active gameplay stack, not just `dt18`: `dt13`, `dt18`, gameplay-related `livecpk` roots, gameplay-related `lua.module` entries, exe replacements, hook files, and cache files. Verify each component from file evidence or mod instructions.
 - Never assume a file is unrelated just because it is named like an animation or visual addon. If a mod readme bundles it as part of gameplay, treat it as part of the gameplay stack until proven otherwise.
 - Never perform a partial gameplay switch that leaves a mixed state unless the user explicitly asked for that exact mix.
-- Never delete `SYSTEM00000000` (PES save cache) as part of any install, gameplay switch, or cleanup step. The user always handles cache invalidation manually.
+- **`SYSTEM00000000` deletion needs user approval, never autonomous.** Propose deletion when its mismatch is the likely cause of a real problem: dt13/dt18/exe gameplay switches, or EDIT save replacements that trigger a "create edit data" prompt. Always ask before deleting. Never bundle it into an install/switch as a silent step. Note the cost: deleting SYSTEM also wipes settings cache and recent-match state.
 - Prefer `tools/fl-gameplay.ps1` for recurring live-install gameplay status checks and vanilla `dt13` or `dt18` switches. It keeps the workflow consistent and repo-backed.
 - Scraped JSON data lives in `evoweb/data/`. Use `duckdb` to query it for analysis across large datasets.
 - On Windows, if a command needs elevation, spawn an elevated `pwsh` from the current session instead of stopping. Pattern: `Start-Process -FilePath (Get-Command pwsh.exe).Source -Verb RunAs -Wait -ArgumentList @('-NoProfile','-ExecutionPolicy','Bypass','-File', <script>)` or pass `-Command` instead of `-File`.
@@ -100,7 +100,7 @@
 | **Effective gameplay** | The gameplay behavior that should win after applying load order, not merely every gameplay-related component installed or wired. | installed combo | State both when they differ. |
 | **Gameplay stack** | The full set of files, livecpk roots, Sider modules, executable replacements, hooks, and caches affecting gameplay. | gameplay mod, gameplay files | Inventory the whole stack before switching. |
 | **Live install** | The actual PES or Football Life installation currently used for play and verification. | game folder, install path | The user-provided path wins over search. |
-| **SYSTEM cache** | The PES save cache that can preserve gameplay or settings state across file switches. | system file, cache | Remove only as part of an approved switch. |
+| **SYSTEM cache** | The PES save cache that can preserve gameplay or settings state across file switches, and which holds a fingerprint of the EDIT save. A stale fingerprint after replacing EDIT00000000 triggers a "create edit data" prompt that wipes the new save. | system file, cache | Removal is destructive (loses settings cache, recent-match state); always ask the user before deleting. |
 | **Vanilla** | A known clean baseline copy of a component from the active game or patch. | default, original | For BPB, vanilla means BPB stock unless explicitly qualified as Konami vanilla. Prefer hash evidence over filename claims. |
 
 ### Kits

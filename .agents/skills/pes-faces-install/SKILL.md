@@ -71,7 +71,7 @@ Faces are the easiest mod to install wrong: silent drops on length mismatch, eas
 - **Length mismatches are silent.** Always cross-check `map`'s reported installed count against the source folder count. The difference is the silent-drop set.
 - **Live DB is authoritative.** `faces/samples/FL26_players.csv` is a snapshot and lags the live install by weeks; do not use it for an install.
 - **Never `rm` source archives** before the install is verified in-game. Backup first. See [[feedback_never_rm_user_data]].
-- **No SYSTEM cache delete for faces.** Faces load via livecpk; the `SYSTEM00000000` cache is not the gating mechanism. Delete only for dt13 / dt18 / exe changes. See [[feedback_system_cache_scope]].
+- **SYSTEM cache delete is not warranted for faces.** Faces load via livecpk; the `SYSTEM00000000` cache is not the gating mechanism. Don't propose the delete for a face install. (Propose-and-ask is the universal rule per [[feedback_system_cache_scope]]; here the answer should be don't propose it.)
 - **Sider is already configured** (`cpk.root = .\livecpk\root`, `livecpk.enabled = 1`). Dropping ID folders into the face root is enough; do not edit `sider.ini` for a face install.
 - **Hostname matters for any logged finding.** If you record a face install outcome in the AIKB or diary, tag the machine. See [[feedback_pes_log_hostname]].
 

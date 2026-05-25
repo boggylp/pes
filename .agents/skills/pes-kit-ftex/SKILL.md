@@ -70,7 +70,7 @@ Wraps `tools/kit-to-ftex.ps1`. PNG -> DDS (DXT5, via ImageMagick `magick`) -> FT
 
 ## Pitfalls
 
-- **No SYSTEM cache delete for kits.** Kits load via kitserver / livecpk, not via the `SYSTEM00000000` cache gate. Cache invalidation is for dt13 / dt18 / exe only. See [[feedback_system_cache_scope]].
+- **SYSTEM cache delete is not warranted for kits.** Kits load via kitserver / livecpk, not via the `SYSTEM00000000` cache gate. Don't propose the delete for a kit install. (Propose-and-ask is the universal rule per [[feedback_system_cache_scope]]; here the answer should be don't propose it.)
 - **DXT5 vs PixelFormatType 11 caveat.** The tool produces DXT5. If a specific slot stutters or renders wrong, the original may have been PixelFormatType 11 (likely BC7). Verify visually; the tool does not match Konami's per-slot preferred format.
 - **Team-name match is a substring, not exact.** `Hajduk` will match `Hajduk Split` and `HNK Hajduk` if both exist; check `FL26_teams.txt` before relying on the auto-name.
 - **Slot scaffolding is the user's job.** This tool produces the texture only; if the slot folder doesn't already have its `config.txt` / `order.ini` / `map.txt`, dropping in the FTEX alone may not be enough.

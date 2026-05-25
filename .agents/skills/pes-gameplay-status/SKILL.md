@@ -54,7 +54,7 @@ The user's recurring entry point for any gameplay question: "what's running on t
 - **Anti-Cheat.lua is debunked.** Holland's `Anti-Cheat.lua` has no valid AOB addresses; use `Dynamic_Difficulty` instead. See [[feedback_anticheat_debunked]].
 - **DT18 also unlocks animations**, not just DT13. alexfe87's DT18 is the animation source for that combo. See [[feedback_pes_dt_files]].
 - **Do not propose changes after a status check** unless the user explicitly approves the install/change step. Evidence-first only.
-- **Never delete `SYSTEM00000000`** as part of any verification step. Cache invalidation is the user's manual job. See [[feedback_system_cache_scope]].
+- **Status checks are read-only.** Never delete `SYSTEM00000000` during a status check. If the status surfaces a likely SYSTEM-cache mismatch (e.g. dt13/dt18/exe just changed without invalidation), propose the deletion separately and ask before running. See [[feedback_system_cache_scope]].
 
 ## Out of scope
 
