@@ -14,6 +14,7 @@
 - If the user gives an explicit install path, treat that path as authoritative. Do not search broader drives or user profile roots unless the user asks or the stated path fails verification.
 - Evidence-first only: do not propose gameplay reset or install steps until the exact active files are verified from the live install, at minimum `SiderAddons\sider.ini`, relevant `Data\dt13/dt18` files, backups, and archive contents or source-thread instructions.
 - Canonical reference for sider config (section layout, `lua.module` entries, livecpk roots, cache behavior): SOK Unleashed v9 thread at `https://evoweb.uk/threads/soulsofkaos-unleashed-9-pes2013.101010/`. Check it before advising on any sider.ini change.
+- Canonical reference for the Sider 7 Lua scripting API (event names, `ctx.register`, module structure): `https://mapote.com/doc/sider/sider7/scripting.html`. Check it before judging whether a `lua.module` actually runs; community used it to prove Holland's `Difficulty_Manager.lua` was dead code (never registered, no `update` event).
 - Prefer file hashes over filename assumptions when identifying which gameplay is currently installed.
 - For alexfe87 gameplay, distinguish the DT18 release version from the Lua module version: say `dt18_v4` for the May 2026 DT18 release, and `GamePlay-v2.lua` only for the separate required Lua module.
 - For live Football Life/PES installs, do not make gameplay or config changes after verification unless the user explicitly approves the install/change step.
