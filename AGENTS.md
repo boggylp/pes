@@ -35,7 +35,7 @@ Gotchas beyond README:
 - `faces map` silently drops length-mismatched ID pairs (`map.go:81`; `ReplaceAll` would corrupt FPK offsets). Salvage: direct-ID copy as-is, or rename source folder to match live name's part count (`normalize.go:82`). Write a rollback record on install.
 - Live FL26 DBs at game root (`FL26_players.txt`, `FL26_teams.txt`), not `faces/samples/`. Convert: `tr -d '\r' < FL26_players.txt | sed '1iId;Name' | sed 's/ - /;/'`.
 
-## Ubiquitous language
+## Domain language
 
 ### Archives and game data
 
