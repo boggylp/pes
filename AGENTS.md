@@ -9,9 +9,9 @@
 - Tracked changes in `git status` → ask `commit/push?`; commit+push on confirm.
 - PES/Football Life mod questions: check AIKB (`~/dev/priv/ai-knowledge-base/wiki/pes/`) first, then `evoweb/data/` freshness; scrape >1 week old → rescrape before answering. Update AIKB when findings worth preserving.
 - AIKB house style: lead with conclusion, tight bullets, short factual sentences, mark hypotheses **Not verified** once.
-- Live-install task → read game-root workspace docs first (`C:\Program Files (x86)\SP Football Life 2026\AGENTS.md` + `README.md`).
+- Live-install task → read the live install's game-root `AGENTS.md` + `README.md` first (install path varies per machine; the user-given path wins).
 - Canonical gameplay backup root: `%USERPROFILE%\MEGA\gaming\pes\gameplay\`; EDIT/SYSTEM saves under `%USERPROFILE%\MEGA\gaming\pes\edit-saves\`.
-- Save/EDIT/SYSTEM backup filenames must embed the FL26 version, machine, and date: `fl26-<savetype>_fl26-<version>_<machine>_<YYYY-MM-DD>` (e.g. `fl26-EDIT00000000_fl26-v2.2-26.2.0.3_BogambeDesktop_2026-06-05`). Version = patch name + exe FileVersion.
+- Save/EDIT/SYSTEM backup filenames must embed the FL26 version, machine, and date: `fl26-<savetype>_fl26-<version>_<machine>_<YYYY-MM-DD>`. Version = patch name + exe FileVersion (e.g. `v2.2-26.2.0.3`).
 - User-given install path is authoritative; don't search wider unless it fails or they ask.
 - Evidence-first: verify active files (`SiderAddons\sider.ini`, `Data\dt13/dt18`, backups, archive/thread instructions) before proposing any reset/install.
 - Identify installed gameplay by file hash, not filename.
