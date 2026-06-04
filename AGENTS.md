@@ -4,69 +4,36 @@
 
 ## Repo-specific
 
-- Monorepo with independent tools in subdirectories, each with its own language and build system.
-- **Before every commit**, find and run the Makefile in the changed subdirectory (`make all`). Do not skip this.
-- If `git status` shows tracked changes, ask `commit/push?`; on confirm, commit and push.
-- When asked about PES/Football Life mods, patches, or community content, first check the AI Knowledge Base (`~/dev/priv/ai-knowledge-base/wiki/pes/`) for existing research, then check scraped data in `evoweb/data/` for freshness. **If scraped data is older than 1 week, rescrape the relevant evoweb thread before answering.** Update the AIKB article when findings are worth preserving.
-- AIKB notes are concise and punctual: lead with the conclusion, prefer tight bullets and short factual sentences over prose, mark hypotheses once with **Not verified** and move on. No multi-paragraph hedging or redundant restatements.
-- When the task is about the live game install, read the live workspace docs at the game root before doing anything else. For this machine, the current Football Life workspace is `C:\Program Files (x86)\SP Football Life 2026\AGENTS.md` and `README.md`.
-- The canonical gameplay backup root on this machine is `%USERPROFILE%\MEGA\gaming\pes\gameplay\`.
-- If the user gives an explicit install path, treat that path as authoritative. Do not search broader drives or user profile roots unless the user asks or the stated path fails verification.
-- Evidence-first only: do not propose gameplay reset or install steps until the exact active files are verified from the live install, at minimum `SiderAddons\sider.ini`, relevant `Data\dt13/dt18` files, backups, and archive contents or source-thread instructions.
-- Canonical reference for sider config (section layout, `lua.module` entries, livecpk roots, cache behavior): SOK Unleashed v9 thread at `https://evoweb.uk/threads/soulsofkaos-unleashed-9-pes2013.101010/`. Check it before advising on any sider.ini change.
-- Canonical reference for the Sider 7 Lua scripting API (event names, `ctx.register`, module structure): `https://mapote.com/doc/sider/sider7/scripting.html`. Check it before judging whether a `lua.module` actually runs; community used it to prove Holland's `Difficulty_Manager.lua` was dead code (never registered, no `update` event).
-- Prefer file hashes over filename assumptions when identifying which gameplay is currently installed.
-- For alexfe87 gameplay, distinguish the DT18 release version from the Lua module version: say `dt18_v4` for the May 2026 DT18 release, and `GamePlay-v2.lua` only for the separate required Lua module.
-- For live Football Life/PES installs, do not make gameplay or config changes after verification unless the user explicitly approves the install/change step.
-- Before any gameplay switch, inventory the full active gameplay stack, not just `dt18`: `dt13`, `dt18`, gameplay-related `livecpk` roots, gameplay-related `lua.module` entries, exe replacements, hook files, and cache files. Verify each component from file evidence or mod instructions.
-- Never assume a file is unrelated just because it is named like an animation or visual addon. If a mod readme bundles it as part of gameplay, treat it as part of the gameplay stack until proven otherwise.
-- Never perform a partial gameplay switch that leaves a mixed state unless the user explicitly asked for that exact mix.
-- **`SYSTEM00000000` deletion needs user approval, never autonomous.** Propose deletion when its mismatch is the likely cause of a real problem: dt13/dt18/exe gameplay switches, or EDIT save replacements that trigger a "create edit data" prompt. Always ask before deleting. Never bundle it into an install/switch as a silent step. Note the cost: deleting SYSTEM also wipes settings cache and recent-match state.
-- Prefer `tools/fl-gameplay.ps1` for recurring live-install gameplay status checks and vanilla `dt13` or `dt18` switches. It keeps the workflow consistent and repo-backed.
-- Scraped JSON data lives in `evoweb/data/`. Use `duckdb` to query it for analysis across large datasets.
-- On Windows, if a command needs elevation, spawn an elevated `pwsh` from the current session instead of stopping. Pattern: `Start-Process -FilePath (Get-Command pwsh.exe).Source -Verb RunAs -Wait -ArgumentList @('-NoProfile','-ExecutionPolicy','Bypass','-File', <script>)` or pass `-Command` instead of `-File`.
+- Monorepo; independent tools per subdir, own language/build.
+- Before every commit, run `make all` in the changed subdir.
+- Tracked changes in `git status` → ask `commit/push?`; commit+push on confirm.
+- PES/Football Life mod questions: check AIKB (`~/dev/priv/ai-knowledge-base/wiki/pes/`) first, then `evoweb/data/` freshness; scrape >1 week old → rescrape before answering. Update AIKB when findings worth preserving.
+- AIKB house style: lead with conclusion, tight bullets, short factual sentences, mark hypotheses **Not verified** once.
+- Live-install task → read game-root workspace docs first (`C:\Program Files (x86)\SP Football Life 2026\AGENTS.md` + `README.md`).
+- Canonical gameplay backup root: `%USERPROFILE%\MEGA\gaming\pes\gameplay\`.
+- User-given install path is authoritative; don't search wider unless it fails or they ask.
+- Evidence-first: verify active files (`SiderAddons\sider.ini`, `Data\dt13/dt18`, backups, archive/thread instructions) before proposing any reset/install.
+- Identify installed gameplay by file hash, not filename.
+- alexfe87: `dt18_v4` = May 2026 DT18 release; `GamePlay-v2.lua` = the separate required Lua module.
+- No gameplay/config change to a live install without explicit user approval of the change step.
+- Before any switch, inventory the full stack (dt13, dt18, gameplay livecpk roots, gameplay `lua.module` entries, exe, hooks, cache); verify each from evidence or mod instructions. A file named like an animation/visual addon counts as gameplay if a mod readme bundles it.
+- No partial switch leaving a mixed state unless the user asked for that exact mix.
+- **`SYSTEM00000000` deletion: user approval required, never autonomous.** Propose when its mismatch likely causes a real problem (dt13/dt18/exe switch, or EDIT-save replacement prompting "create edit data"); ask first; never bundle silently. Cost: also wipes settings cache + recent-match state.
+- `tools/fl-gameplay.ps1` for recurring status checks and vanilla dt13/dt18 switches.
+- Query `evoweb/data/` JSON with `duckdb`.
+- Elevation: spawn elevated `pwsh` from the session, don't stop. `Start-Process (Get-Command pwsh.exe).Source -Verb RunAs -Wait -ArgumentList @('-NoProfile','-ExecutionPolicy','Bypass','-File',<script>)`.
+- Sider config reference (sections, `lua.module`, livecpk roots, cache): [SOK Unleashed v9](https://evoweb.uk/threads/soulsofkaos-unleashed-9-pes2013.101010/). Sider 7 Lua scripting API (events, `ctx.register`): [docs](https://mapote.com/doc/sider/sider7/scripting.html) — check before judging whether a `lua.module` runs.
 
 ## Tools
 
-### evoweb (Go)
+Build each with `go build .` in its subdir. Usage in @README.md; operational detail in the `pes-*` skills. Subdirs: `evoweb` (XenForo scraper; always `--output data/<name>.json`), `cpk` (CPK reader/extractor), `pesdb` (roster extractor; EDIT saves need ejogc327's `decrypter21.exe`), `faces` (map/detect), `tools/` (PowerShell helpers).
 
-- XenForo forum scraper. Build: `go build .` from `evoweb/`.
-- Subcommands: `go run . login`, `go run . scrape --output <file> [flags] <url>`, `go run . forum --output <file> [flags] <url>`.
-- `scrape` extracts posts from a thread. `forum` lists threads from a forum index page.
-- Credentials stored plaintext at `~/.secrets/evoweb/credentials`. Run `login` once to save them.
-- `--cookie` and `--cookie-file` flags override stored credentials.
-- **Always use `--output data/<name>.json`** when scraping. Never scrape to stdout only. All results must be persisted in `evoweb/data/` for future analysis.
+Gotchas beyond README:
 
-### cpk (Go)
-
-- CRI Middleware CPK archive reader. Build: `go build .` from `cpk/`.
-- Subcommands: `go run . list [-l] <cpk>`, `go run . extract [--file inner-path] [--out path] <cpk>`.
-- `list` prints inner paths; `-l` adds offsets and sizes. `extract` writes one file by inner path or dumps everything to a directory.
-- Inner-path matching is case-insensitive and accepts both `/` and `\`. Players base lives at `common/etc/pesdb/Player.bin` inside `Data/dt00_x64.cpk`; `Data/dt10_x64.cpk` and `download/dt80_*E_x64.cpk` override in load order.
-- BPB 2026 ships a real `Player.bin` in both `dt00` and `dt10` — 1,751,422 bytes, md5 `89938c15...`, identical between the two cpks. EDIT save (`~/Documents/KONAMI/eFootball PES 2021 SEASON UPDATE/2026/save/EDIT00000000`) carries 20 BPB-specific custom adds on top. Pesdb files are not encrypted; they're a `\xff\x10\x81WESYS` + zlib envelope. Use the repo's `pesdb` tool (`pesdb roster --player-bin ... --edit data.dat --out csv`) to merge the base + EDIT adds into a final Id;Name;Shirt CSV. EDIT save decryption still requires ejogc327's `decrypter21.exe`.
-
-### pesdb (Go)
-
-- PES 2021 player roster extractor. Build: `go build .` from `pesdb/`.
-- Subcommand: `pesdb roster --player-bin <Player.bin> --out <csv> [--edit <data.dat>]`.
-- Input `Player.bin` comes from the repo's `cpk extract --file common/etc/pesdb/Player.bin <some.cpk>`.
-- Optional `--edit` is the decrypted output of ejogc327's `decrypter21.exe` against an `EDIT00000000` save (the file is `data.dat` inside the decrypter's output directory).
-- Pesdb files inside cpks are zlib-wrapped, not encrypted. Front ~2 KB is opaque; magic `\xff\x10\x81WESYS` sits past that, followed by 8 bytes of size metadata and a zlib stream. After decompression, records are 312 bytes each: Id at `+0x08`, name at `+0x44`, shirt at `+0x81` (Player.bin format). EDIT save data.dat uses the same stride but Id at `+0x0C`, name at `+0x42`, shirt at `+0x7F`, starting at file offset 112.
-- Earlier "Player.bin is encrypted" / "zero-filled" claims were both wrong; the first was caused by reading only the opaque front section, the second by an offset bug in the cpk tool (fixed 2026-05-06).
-
-### faces (Go)
-
-- Player face mapping and mismatch detection. Build: `go build .` from `faces/`.
-- Subcommands: `go run . detect --faces-dir <path> --player-csv <file>`, `go run . map [flags]`.
-- `detect` scans a livecpk faces folder for ID mismatches, orphans, non-numeric folders, and missing FPKs.
-- `map` copies and remaps faces between game versions using name matching across CSV exports.
-- **Live FL26 player and team databases live at the game root, not in `faces/samples/`.** Use `C:\Program Files (x86)\SP Football Life 2026\FL26_players.txt` (current player IDs) and `FL26_teams.txt` (team IDs) as the authoritative source. The samples in `faces/samples/` are a snapshot and may lag the live install by weeks. Format conversion needed for the `faces` tool: live file is `<ID> - <Name>` with CRLF; faces tool expects a `Id;Name` semicolon CSV. Convert with `tr -d '\r' < FL26_players.txt | sed '1iId;Name' | sed 's/ - /;/'`.
-- The face install destination on this machine is `C:\Program Files (x86)\SP Football Life 2026\SiderAddons\livecpk\root\Asset\model\character\face\real\<player_id>\`. Sider is already configured (`cpk.root = .\livecpk\root`, `livecpk.enabled = 1`); dropping numeric ID folders there is sufficient, no `sider.ini` edit needed.
-- The `map` command silently drops any pair where source and destination IDs have different character lengths (e.g. 5-digit `72284` to 6-digit `177929`). This is a safety check (`map.go:81`) -- the tool's hex replace is `strings.ReplaceAll`, which would change file size and corrupt FPK length-prefixed path offsets if lengths differed. Length-mismatch faces need a separate FPK-aware editor; do not force-install them.
-- Salvage techniques for `map` near-misses (when source folder name doesn't fuzzy-match a destination CSV name):
-  - **Direct ID match:** if the source folder ID literally exists in the destination CSV, copy the folder as-is to `dest-folder/<id>/` -- no hex remap needed.
-  - **Source folder rename:** when the live name has fewer parts than the source name (e.g. live `Dion Beljo` vs source `Dion Drena Beljo`), the matcher fails on `len(targetParts) != len(candidateParts)` (`normalize.go:82`). Rename the source folder to match the live name's part count, then rerun. The internal ID inside `face.fpk` still gets remapped correctly.
-- When installing faces to the live install, write a rollback record next to the source archives (e.g. `MEGA/gaming/pes/faces/_INSTALLED_<date>.txt`) listing every dest folder ID and the not-installed reasons. The user can clean up by deleting the listed numeric folders.
+- Player base `common/etc/pesdb/Player.bin` in `Data/dt00_x64.cpk`; `dt10_x64.cpk` + `download/dt80_*E_x64.cpk` override by load order. Not encrypted: `\xff\x10\x81WESYS` + zlib. BPB ships a real Player.bin (1,751,422 B, md5 `89938c15`) in dt00=dt10; EDIT save adds 20 BPB customs.
+- pesdb stride 312 B. Player.bin: Id `+0x08`, name `+0x44`, shirt `+0x81`. EDIT `data.dat`: Id `+0x0C`, name `+0x42`, shirt `+0x7F`, records from offset 112.
+- `faces map` silently drops length-mismatched ID pairs (`map.go:81`; `ReplaceAll` would corrupt FPK offsets). Salvage: direct-ID copy as-is, or rename source folder to match live name's part count (`normalize.go:82`). Write a rollback record on install.
+- Live FL26 DBs at game root (`FL26_players.txt`, `FL26_teams.txt`), not `faces/samples/`. Convert: `tr -d '\r' < FL26_players.txt | sed '1iId;Name' | sed 's/ - /;/'`.
 
 ## Ubiquitous language
 
