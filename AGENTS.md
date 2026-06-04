@@ -66,6 +66,7 @@ Gotchas beyond README:
 | **dt13** | The gameplay-related CPK component commonly changed by gameplay patches. | dt13 file | Verify by hash before identifying it. |
 | **dt18** | The gameplay-related CPK component commonly changed by gameplay patches. | dt18 file | Verify by hash before identifying it. |
 | **Effective gameplay** | The gameplay behavior that should win after applying load order, not merely every gameplay-related component installed or wired. | installed combo | State both when they differ. |
+| **EXE mod** | A modded `FL_2026.exe` / `PES2021.exe` carrying hardcoded gameplay changes, ranging from a multi-MB fork to a few-byte binary patch. | exe patch, modded exe | Identify by hash, never by label. A label can be wrong (SHA256 `9EE0C306` is vanilla FL26 26.2.0.3, not the "Holland WE2026" it was filed as; real Holland = `19740A3C`, vanilla +17 bytes). |
 | **Gameplay stack** | The full set of files, livecpk roots, Sider modules, executable replacements, hooks, and caches affecting gameplay. | gameplay mod, gameplay files | Inventory the whole stack before switching. |
 | **Live install** | The actual PES or Football Life installation currently used for play and verification. | game folder, install path | The user-provided path wins over search. |
 | **SYSTEM cache** | The PES save cache that can preserve gameplay or settings state across file switches, and which holds a fingerprint of the EDIT save. A stale fingerprint after replacing EDIT00000000 triggers a "create edit data" prompt that wipes the new save. | system file, cache | Removal is destructive (loses settings cache, recent-match state); always ask the user before deleting. |
@@ -86,7 +87,7 @@ Gotchas beyond README:
 | ---- | ---------- | ---------------- | ----- |
 | **cpk.root entry** | A Sider config entry that adds a livecpk root to the game data override chain. | cpk root, livecpk entry | |
 | **livecpk root** | A loose-file directory that Sider presents to the game as overrideable CPK content. | livecpk folder | |
-| **lua.module entry** | A Sider config entry that loads a Lua module into the game process. | Lua module, module entry | Treat bundled gameplay modules as part of the gameplay stack. |
+| **lua.module entry** | A Sider config entry that loads a Lua module into the game process. | Lua module, module entry | Treat bundled gameplay modules as part of the gameplay stack. Loaded is not running: a module that never registers a real Sider event via `ctx.register` is dead code (e.g. Holland's `Difficulty_Manager.lua`). |
 | **Sider** | The PES mod loader that injects modules and loose-file roots into the running game. | sider.ini | `sider.ini` is the config file, not the loader. |
 
 ### Web research
