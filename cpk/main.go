@@ -18,6 +18,8 @@ func main() {
 		cmdList(os.Args[2:])
 	case "extract":
 		cmdExtract(os.Args[2:])
+	case "kits":
+		cmdKits(os.Args[2:])
 	default:
 		printUsage()
 		os.Exit(1)
@@ -29,7 +31,8 @@ func printUsage() {
 
 commands:
   list    [flags] CPK            print the table of contents
-  extract [flags] CPK            extract one file or all files from a CPK`)
+  extract [flags] CPK            extract one file or all files from a CPK
+  kits    [flags] CPK            assemble a kitserver pack from a uniform CPK + config tree`)
 }
 
 func cmdList(args []string) {

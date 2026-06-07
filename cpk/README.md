@@ -25,9 +25,29 @@ go build .
 
 # Extract everything to a directory
 ./cpk extract --out extracted/ Data/dt40_all.cpk
+
+# Extract a subset by inner-path prefix (one pass; exits non-zero if nothing matches)
+./cpk extract --prefix "Asset/model/character/uniform/texture/#windx11/u0272" --out extracted/ Data/dt34_g4.cpk
 ```
 
 The matcher used by `--file` is case-insensitive and accepts both forward and backslashes, so `common/etc/pesdb/Player.bin` and `Common\Etc\Pesdb\Player.bin` resolve to the same entry.
+
+## Assembling a kitserver pack
+
+`cpk kits` reads uniform textures straight from a patch's uniform cpk and merges them with a kitserver config tree (the per-team `config.txt` / `order.ini` folders a patch ships under `sider/content/kit-server/`) into a self-contained pack: each `<League>/<Team>/{p1..,g1..}` slot folder gets its config plus the `.ftex` files that config references, and a pack `map.txt` is written.
+
+```sh
+cpk kits \
+  --kserv-src "/path/to/patch/sider/content/kit-server" \
+  --leagues "Mozzart Bet Super liga Srbije,SuperSport HNL" \
+  --out pack/ \
+  "/path/to/patch/Data/dt34_g4.cpk"
+```
+
+- `--kserv-src` holds `map.txt` (lines `team-id, "League\Team"`) and the `<League>/<Team>/` config folders. Override the map with `--map`.
+- `--leagues` is comma-separated and repeatable; omit to include every league in the map.
+- Team IDs in the output `map.txt` are the source patch's IDs. Importing into a different game needs IDs that game actually uses (base-Konami clubs share IDs; patch-custom clubs do not).
+- The texture source must be the cpk that holds those teams' textures (the patch's own `dt34_g4.cpk`), not another game's.
 
 ## Where Player.bin lives
 
