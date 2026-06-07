@@ -11,7 +11,6 @@ import (
 	"strings"
 )
 
-// stringList is a repeatable, comma-splitting flag value (--leagues A,B --leagues C).
 type stringList []string
 
 func (s *stringList) String() string { return strings.Join(*s, ",") }
@@ -32,10 +31,9 @@ var (
 	texBaseRe    = regexp.MustCompile(`^u\d+[pg]\d+`)
 )
 
-// buildFamilyIndex groups every uniform texture in the cpk by its base name
-// (e.g. u0272p3 -> [u0272p3, u0272p3_back, u0272p3_srm, u0272p3_name_ex, ...]).
-// The game loads _srm and _name_ex by naming convention, so the kitserver
-// config.txt never names them; this lets the pack carry the whole family.
+// The game loads _srm/_name_ex (and some _leg) by naming convention without
+// listing them in config.txt, so the pack must carry each KitFile's whole
+// u<id><slot>* family, not only config-referenced textures.
 func buildFamilyIndex(r *Reader) map[string][]string {
 	prefix := normalizePath(uniformTexDir)
 	fam := map[string][]string{}
@@ -77,8 +75,6 @@ func parseKitMap(path string) ([]kitMapEntry, error) {
 	return out, sc.Err()
 }
 
-// configTextures returns the texture base names a kitserver config.txt
-// references and, separately, its KitFile value (the family base name).
 func configTextures(path string) (names []string, kitFile string, err error) {
 	f, err := os.Open(path)
 	if err != nil {
@@ -191,8 +187,6 @@ func cmdKits(args []string) {
 			if err != nil {
 				return err
 			}
-			// config-named textures plus the rest of the KitFile family
-			// (_srm, _name_ex) the game loads by naming convention.
 			want := append(names, fam[strings.ToLower(kitFile)]...)
 			seen := map[string]bool{}
 			for _, n := range want {
