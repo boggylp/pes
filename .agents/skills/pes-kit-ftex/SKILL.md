@@ -1,6 +1,6 @@
 ---
 name: pes-kit-ftex
-description: '**Invoke this skill BEFORE converting a kit PNG to a PES `.ftex` file or producing a kitserver-named texture.** Covers `tools/kit-to-ftex.ps1` (the PNG -> DDS (DXT5, via ImageMagick) -> FTEX (via Atvaark FtexTool 0.3.3) pipeline), the kitserver naming convention `u<team_id><p|g><slot>.ftex`, team-name resolution via `FL26_teams.txt` substring match, the live install destination at `C:\Program Files (x86)\SP Football Life 2026\SiderAddons\livecpk\root\...`, the DXT5-vs-PixelFormatType-11 caveat (DXT5 is broadly compatible but may not exactly match the engine-preferred format), and the kit-install scope rule for SYSTEM cache, do not propose the delete for kits because it is not warranted; see [[feedback_system_cache_scope]] for the universal propose-and-ask rule. Triggers: "convert this kit", "make an FTEX for <team>", "kit from pesmaster.com", "produce u<id>p<slot>.ftex", "install this kit texture".'
+description: '**Invoke this skill BEFORE converting a kit PNG to a PES `.ftex` file or producing a kitserver-named texture.** Covers `tools/kit-to-ftex.ps1` (the PNG -> DDS (DXT5, via ImageMagick) -> FTEX (via Atvaark FtexTool 0.3.3) pipeline), the kitserver naming convention `u<team_id><p|g><slot>.ftex`, team-name resolution via `FL26_teams.txt` substring match, the live-install destination under the FL26 kitserver / livecpk root (path varies per machine), the DXT5-vs-PixelFormatType-11 caveat (DXT5 is broadly compatible but may not exactly match the engine-preferred format), and the kit-install scope rule for SYSTEM cache, do not propose the delete for kits because it is not warranted; see [[feedback_system_cache_scope]] for the universal propose-and-ask rule. Triggers: "convert this kit", "make an FTEX for <team>", "kit from pesmaster.com", "produce u<id>p<slot>.ftex", "install this kit texture".'
 metadata:
   trusted_sources:
     - https://github.com/Atvaark/FtexTool
@@ -62,7 +62,7 @@ Wraps `tools/kit-to-ftex.ps1`. PNG -> DDS (DXT5, via ImageMagick `magick`) -> FT
 | Flag             | Effect                                                                                          |
 | ---------------- | ----------------------------------------------------------------------------------------------- |
 | `-TeamId <int>`  | Kitserver naming with literal team ID                                                            |
-| `-TeamName <s>`  | Substring match in `FL26_teams.txt` (default `%ProgramFiles(x86)%\SP Football Life 2026\FL26_teams.txt`) |
+| `-TeamName <s>`  | Substring match in `FL26_teams.txt` at the install root (override with `-TeamsFile`; install path varies per machine) |
 | `-TeamsFile <p>` | Override the teams file path                                                                     |
 | `-Slot <1-9>`    | Kit slot (default `1`)                                                                           |
 | `-KitType p\|g`  | Player or goalkeeper (default `p`)                                                               |
@@ -74,25 +74,25 @@ Wraps `tools/kit-to-ftex.ps1`. PNG -> DDS (DXT5, via ImageMagick `magick`) -> FT
 - **DXT5 vs PixelFormatType 11 caveat.** The tool produces DXT5. If a specific slot stutters or renders wrong, the original may have been PixelFormatType 11 (likely BC7). Verify visually; the tool does not match Konami's per-slot preferred format.
 - **Team-name match is a substring, not exact.** `Hajduk` will match `Hajduk Split` and `HNK Hajduk` if both exist; check `FL26_teams.txt` before relying on the auto-name.
 - **Slot scaffolding is the user's job.** This tool produces the texture only; if the slot folder doesn't already have its `config.txt` / `order.ini` / `map.txt`, dropping in the FTEX alone may not be enough.
-- **Verify the live install path** before writing to a hard-coded location. Live destination is `C:\Program Files (x86)\SP Football Life 2026\SiderAddons\livecpk\root\...` per [[reference_fl26_install]].
+- **Verify the live install path** before writing; it varies per machine and the user-given path wins. Kitserver kits live under `<install>\sider*\content\kit-server\...`; a raw livecpk override would be `<install>\SiderAddons\livecpk\root\...`.
 
-## Extracting existing kits from a BPB / PES cpk (repeatable, Go)
+## Extracting existing kits from a PES cpk (repeatable)
 
-BPB ships better Balkan-league kits. They live in **`Data/dt34_g4.cpk`** (the uniform archive), in two parts:
+Any patch's kits live in its **uniform archive** (PES2021 packaging: `dt34_g4.cpk`; confirm for the patch at hand with `cpk list <cpk> | grep -c uniform`), in two parts:
 
-- **Textures:** `Asset/model/character/uniform/texture/#windx11/u<NNNN>g<slot>[_back|_leg|_name|_name_ex].ftex`, where `NNNN` is the team ID zero-padded to 4 digits (team 272 -> `u0272g1`). BPB uses `g<slot>`; kitserver wants `u<id>p<slot>` — a light rename on import, no FTEX conversion.
-- **Definitions:** `common/character0/model/character/uniform/team/<id>/<id>_DEF_{1st,2nd,3rd,4th,GK1st,...}_realUni.bin` (colours / slot setup; reference for the kitserver `config.txt`).
+- **Textures:** `Asset/model/character/uniform/texture/#windx11/u<NNNN>g<slot>[_back|_leg|_name|_name_ex].ftex` — `NNNN` is the team ID zero-padded to 4 digits (272 -> `u0272`). In-cpk these use `g<slot>`; kitserver expects `u<id>p<slot>` — a rename on import, not a format change.
+- **Definitions:** `common/character0/model/character/uniform/team/<id>/<id>_DEF_{1st,2nd,3rd,GK1st,...}_realUni.bin` — colours / slot setup; reference when writing the kitserver `config.txt`.
 
-Identify Balkan teams from the sider **kit-server map** (`sider/content/kit-server/map.txt`, lines `team-id, "League\Team"`) or the BPB team reference CSV. Balkan leagues: `Mozzart Bet Super liga Srbije`, `SuperSport HNL`, `WWin liga BiH`, `Prva liga Telemach` (SVN), `Meridianbet 1. CFL` (MNE), `Prva MFL` (MKD).
+Map team IDs to leagues via the sider **kit-server map** (`<install>/sider/content/kit-server/map.txt`, lines `team-id, "League\Team"`) or a team CSV.
 
-Repeatable extraction uses `cpk extract --prefix` (one pass per prefix, no per-file loop; exits non-zero if a prefix matches nothing). Per team `<id>` (`PAD` = printf `%04d`):
+Extract a subset repeatably with `cpk extract --prefix` (one pass; exits non-zero if a prefix matches nothing). Per team `<id>` (`PAD` = `%04d`):
 
 ```sh
-cpk extract --prefix "common/character0/model/character/uniform/team/<id>/" --out <dir> Data/dt34_g4.cpk
-cpk extract --prefix "Asset/model/character/uniform/texture/#windx11/u<PAD>g"   --out <dir> Data/dt34_g4.cpk
+cpk extract --prefix "common/character0/model/character/uniform/team/<id>/"   --out <dir> <uniform.cpk>
+cpk extract --prefix "Asset/model/character/uniform/texture/#windx11/u<PAD>g" --out <dir> <uniform.cpk>
 ```
 
-Verify each `.ftex` begins with `FTEX`. The 2026-06-07 Balkan extract (52 teams, 655 textures + 195 realUni, 119 MB) is at `D:\Kits\bpb_balkan_bpb2026-v1\` with `balkan_teams_manifest.csv`.
+Verify each extracted `.ftex` begins with `FTEX`.
 
 ## Out of scope
 
