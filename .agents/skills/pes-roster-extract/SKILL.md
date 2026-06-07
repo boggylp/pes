@@ -67,7 +67,7 @@ Reads `Player.bin` out of a CPK, optionally merges custom adds from a decrypted 
 
 ## Record layout (for verification)
 
-Pesdb files are a `\xff\x10\x81WESYS` magic + 8-byte size header + zlib stream, prefixed by ~2 KB of opaque header. After decompression, records are 312 bytes:
+Pesdb files are a `\xff\x10\x81WESYS` magic (at byte 0) + 8-byte size header + zlib stream. After decompression, records are 312 bytes:
 
 | Source       | Offset | Field  |
 | ------------ | ------ | ------ |
@@ -82,7 +82,7 @@ EDIT records start at file offset 112.
 
 ## Pitfalls
 
-- **Player.bin is not encrypted.** Earlier "encrypted Player.bin" / "zero-filled Player.bin" claims were both wrong. The first read only the opaque front section; the second hit an offset bug in `cpk` that was fixed 2026-05-06. The file is zlib inside a WESYS envelope; the front ~2 KB is opaque metadata, not encryption.
+- **Player.bin is not encrypted.** Earlier "encrypted Player.bin" / "zero-filled Player.bin" / "~2 KB opaque front" claims were all wrong. It is plain WESYS+zlib from byte 0. The apparent garbage front was the cpk extraction offset bug (a reused `rowReader` misreading ContentOffset → every file read 2048 B too early), fully fixed 2026-06-07 (see the ContentOffset bug section above). `pesdb` searches for the WESYS magic, so it tolerated the old prefix and still produced correct rosters.
 - **Pick the right CPK.** Running `extract` against `dt00` when `dt10` overrides it gives the base roster, not the effective one. Verify with [[pes-gameplay-status]] which CPK actually exists in `Data/`.
 - **BPB and FL26 are distinct.** Their `Player.bin` files differ. Do not assume a roster CSV from one is valid against the other; regenerate per install.
 - **EDIT save decryption is third-party.** `decrypter21.exe` is the only known working decrypter; if it's not available, the EDIT-save adds cannot be merged and the CSV is base-only.
