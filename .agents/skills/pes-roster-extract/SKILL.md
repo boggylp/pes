@@ -88,22 +88,19 @@ EDIT records start at file offset 112.
 - **EDIT save decryption is third-party.** `decrypter21.exe` is the only known working decrypter; if it's not available, the EDIT-save adds cannot be merged and the CSV is base-only.
 - **The repo's `cpk` tool falls back to CRILAYLA decompression but PES 2017-2021 cpks usually store uncompressed.** A "compression unknown" error usually means the inner path is wrong, not that the file is encrypted.
 
-## Verifying cpk extraction integrity (offset / ContentOffset bug)
+## cpk extraction ContentOffset bug (FIXED 2026-06-07)
 
-The repo `cpk` tool's offset handling is **not fully reliable**. `reader.go` has a rebase heuristic ("Some PES season packs ... FileOffsets already absolute") that decides whether to add `ContentOffset` to each TOC `FileOffset`. It is correct for dt-pack `Player.bin` (e.g. `dt10`) but **wrong for relative-offset face packs** like `download/fa26_bpb.cpk`: it reads every entry one `Align` block (2048 B) too early, producing a 2 KB garbage prefix + a tail truncated by 2048 B. Extracted `face.fpk` files are then corrupt and **crash the game** (the engine wants `foxfpk` at byte 0; a corrupt face has `foxfpk` at offset 2048).
+A `reader.go` bug silently corrupted extracted face packs. `load()` reused one `rowReader` for two `readNamedNumber` calls (`TocOffset` then `ContentOffset`); that walker advances the row pointer across every column, so the second read started past the row end and returned garbage. The bogus ContentOffset (a huge value, then forced down to TocOffset by the `tocOffset < contentOffset` clamp) fed the absolute-offset rebase, so every file was read one `Align` block (2048 B) too early — a 2 KB garbage prefix plus a 2048 B tail truncation.
 
-Ground truth (verified 2026-06-07, `BogambeDesktop`): in both `dt10` and `fa26_bpb` the real payload sits at `rawFileOffset + ContentOffset` — neither should be rebased. dt10 `Player.bin` WESYS magic and fa26_bpb `17003` `foxfpk` both live at `raw+CO`.
+Symptom: extracted `face.fpk` had `foxfpk` at offset 2048 instead of 0 → **crashes the game** on load. `Player.bin` survived only because `pesdb` searches for the WESYS magic and tolerated the junk prefix.
 
-Always verify after extracting from an unfamiliar cpk:
+Fix: use a fresh `headerTable.row(0)` per `readNamedNumber`. Verified on `BogambeDesktop`: fa26_bpb `17003` → `foxfpk@0` size-correct; dt10 `Player.bin` → WESYS@0, 24981 rows.
+
+Quick post-extract sanity check (no python; first 6 bytes of a face must be the magic):
 
 ```sh
-# Is the pack relative (must add ContentOffset, never rebase) or absolute?
-python3 .agents/skills/pes-roster-extract/cpk-extract-check.py header <some.cpk>
-# Is an extracted face.fpk valid (foxfpk@0) or corrupt (foxfpk@2048)?
-python3 .agents/skills/pes-roster-extract/cpk-extract-check.py face <path>/#Win/face.fpk
+head -c6 "<dir>/#Win/face.fpk"   # must print: foxfpk
 ```
-
-`foxfpk@0 OK` = good; `CORRUPT - foxfpk@2048` = the rebase bug fired. Correct standalone extraction reads each TOC entry at `rawFileOffset + ContentOffset` for `FileSize` bytes (the script's docstring carries the @UTF/TOC parser). The `reader.go` heuristic itself still needs a proper fix (a `minRaw >= contentOffset` guard is the likely shape but did not land cleanly in testing on 2026-06-07 — the reader's runtime behavior diverged from the visible source, so it needs instrumented Go debugging, not a blind patch).
 
 ## Out of scope
 

@@ -215,48 +215,6 @@ func (r *rowReader) valueBytes(c column) ([]byte, bool) {
 	return nil, false
 }
 
-// readNumber returns the column value coerced to int64.
-func (r *rowReader) readNumber(name string) (int64, error) {
-	for _, c := range r.tbl.columns {
-		if c.name != name {
-			continue
-		}
-		buf, advance := r.valueBytes(c)
-		if buf == nil {
-			return 0, fmt.Errorf("column %q has no value for this row", name)
-		}
-		v, err := decodeNumber(buf, c.typ)
-		if advance {
-			r.rowPtr += c.typ.size()
-		}
-		return v, err
-	}
-	return 0, fmt.Errorf("column %q not found", name)
-}
-
-// readString returns the string referenced by a column of typeString.
-func (r *rowReader) readString(name string) (string, error) {
-	for _, c := range r.tbl.columns {
-		if c.name != name {
-			continue
-		}
-		if c.typ != typeString {
-			return "", fmt.Errorf("column %q is not a string (type=%d)", name, c.typ)
-		}
-		buf, advance := r.valueBytes(c)
-		if buf == nil {
-			return "", fmt.Errorf("column %q has no value for this row", name)
-		}
-		off := int(int32(binary.BigEndian.Uint32(buf))) + r.tbl.stringsO
-		s, err := r.tbl.readStringAt(off)
-		if advance {
-			r.rowPtr += 4
-		}
-		return s, err
-	}
-	return "", fmt.Errorf("column %q not found", name)
-}
-
 // advance walks past a column's row storage without reading it. Lets callers
 // position the row pointer correctly when they only need a subset of fields.
 func (r *rowReader) skip(c column) {

@@ -105,15 +105,23 @@ func (r *Reader) load() error {
 	}
 
 	// Header table has exactly one row with TocOffset and ContentOffset.
-	row, err := headerTable.row(0)
+	// readNamedNumber walks the whole row and advances the row pointer, so each
+	// field needs a fresh rowReader; reusing one makes the second read start
+	// past the end of the row and return garbage (a huge ContentOffset, which
+	// then wrongly forces the absolute-offset rebase below).
+	tocRow, err := headerTable.row(0)
 	if err != nil {
 		return err
 	}
-	tocOffset, err := readNamedNumber(row, "TocOffset")
+	tocOffset, err := readNamedNumber(tocRow, "TocOffset")
 	if err != nil {
 		return fmt.Errorf("CPK header: %w", err)
 	}
-	contentOffset, err := readNamedNumber(row, "ContentOffset")
+	contentRow, err := headerTable.row(0)
+	if err != nil {
+		return err
+	}
+	contentOffset, err := readNamedNumber(contentRow, "ContentOffset")
 	if err != nil {
 		return fmt.Errorf("CPK header: %w", err)
 	}
