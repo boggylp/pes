@@ -36,7 +36,7 @@ Reads `Player.bin` out of a CPK, optionally merges custom adds from a decrypted 
     ./cpk extract \
       --file common/etc/pesdb/Player.bin \
       --out /tmp/Player.bin \
-      "/c/Program Files (x86)/SP Football Life 2026/Data/dt10_x64.cpk"
+      "$INSTALL/Data/dt10_x64.cpk"   # $INSTALL = the target PES/FL install root (BPB lives in the Steam PES 2021 dir, not FL26); varies per machine
     ```
 
     Inner-path matching is case-insensitive and slash-agnostic.
