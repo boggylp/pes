@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 func main() {
@@ -61,12 +62,17 @@ func cmdList(args []string) {
 func cmdExtract(args []string) {
 	fs := flag.NewFlagSet("extract", flag.ExitOnError)
 	inner := fs.String("file", "", "inner path of a single file to extract (e.g. common/etc/pesdb/Player.bin)")
-	out := fs.String("out", "", "output path (file when --file is given, directory for full extraction)")
+	prefix := fs.String("prefix", "", "extract every file whose inner path starts with this prefix (case-insensitive); requires --out <dir>")
+	out := fs.String("out", "", "output path (file when --file is given, directory for full or --prefix extraction)")
 	if err := fs.Parse(args); err != nil {
 		os.Exit(1)
 	}
 	if fs.NArg() != 1 {
-		fmt.Fprintln(os.Stderr, "usage: cpk extract [--file inner-path] [--out path] <cpk>")
+		fmt.Fprintln(os.Stderr, "usage: cpk extract [--file inner-path | --prefix inner-path-prefix] [--out path] <cpk>")
+		os.Exit(1)
+	}
+	if *inner != "" && *prefix != "" {
+		fmt.Fprintln(os.Stderr, "extract: --file and --prefix are mutually exclusive")
 		os.Exit(1)
 	}
 
@@ -102,23 +108,37 @@ func cmdExtract(args []string) {
 
 	dir := *out
 	if dir == "" {
-		fmt.Fprintln(os.Stderr, "extract: --out <dir> required for full extraction")
+		fmt.Fprintln(os.Stderr, "extract: --out <dir> required for full or --prefix extraction")
 		os.Exit(1)
 	}
+	wantPrefix := normalizePath(*prefix)
+	var extracted, skipped int
 	for _, f := range r.Files() {
+		if wantPrefix != "" && !strings.HasPrefix(normalizePath(f.Path()), wantPrefix) {
+			continue
+		}
 		data, err := r.ReadFile(f)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "skip %s: %v\n", f.Path(), err)
+			skipped++
 			continue
 		}
 		dest := filepath.Join(dir, filepath.FromSlash(f.Path()))
 		if err := os.MkdirAll(filepath.Dir(dest), 0755); err != nil {
 			fmt.Fprintf(os.Stderr, "mkdir %s: %v\n", filepath.Dir(dest), err)
+			skipped++
 			continue
 		}
 		if err := os.WriteFile(dest, data, 0644); err != nil {
 			fmt.Fprintf(os.Stderr, "write %s: %v\n", dest, err)
+			skipped++
 			continue
 		}
+		extracted++
 	}
+	if *prefix != "" && extracted == 0 {
+		fmt.Fprintf(os.Stderr, "no files matched prefix %q\n", *prefix)
+		os.Exit(1)
+	}
+	fmt.Fprintf(os.Stderr, "extracted %d files to %s (%d skipped)\n", extracted, dir, skipped)
 }

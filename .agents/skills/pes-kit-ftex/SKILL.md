@@ -76,6 +76,24 @@ Wraps `tools/kit-to-ftex.ps1`. PNG -> DDS (DXT5, via ImageMagick `magick`) -> FT
 - **Slot scaffolding is the user's job.** This tool produces the texture only; if the slot folder doesn't already have its `config.txt` / `order.ini` / `map.txt`, dropping in the FTEX alone may not be enough.
 - **Verify the live install path** before writing to a hard-coded location. Live destination is `C:\Program Files (x86)\SP Football Life 2026\SiderAddons\livecpk\root\...` per [[reference_fl26_install]].
 
+## Extracting existing kits from a BPB / PES cpk (repeatable, Go)
+
+BPB ships better Balkan-league kits. They live in **`Data/dt34_g4.cpk`** (the uniform archive), in two parts:
+
+- **Textures:** `Asset/model/character/uniform/texture/#windx11/u<NNNN>g<slot>[_back|_leg|_name|_name_ex].ftex`, where `NNNN` is the team ID zero-padded to 4 digits (team 272 -> `u0272g1`). BPB uses `g<slot>`; kitserver wants `u<id>p<slot>` — a light rename on import, no FTEX conversion.
+- **Definitions:** `common/character0/model/character/uniform/team/<id>/<id>_DEF_{1st,2nd,3rd,4th,GK1st,...}_realUni.bin` (colours / slot setup; reference for the kitserver `config.txt`).
+
+Identify Balkan teams from the sider **kit-server map** (`sider/content/kit-server/map.txt`, lines `team-id, "League\Team"`) or the BPB team reference CSV. Balkan leagues: `Mozzart Bet Super liga Srbije`, `SuperSport HNL`, `WWin liga BiH`, `Prva liga Telemach` (SVN), `Meridianbet 1. CFL` (MNE), `Prva MFL` (MKD).
+
+Repeatable extraction uses `cpk extract --prefix` (one pass per prefix, no per-file loop; exits non-zero if a prefix matches nothing). Per team `<id>` (`PAD` = printf `%04d`):
+
+```sh
+cpk extract --prefix "common/character0/model/character/uniform/team/<id>/" --out <dir> Data/dt34_g4.cpk
+cpk extract --prefix "Asset/model/character/uniform/texture/#windx11/u<PAD>g"   --out <dir> Data/dt34_g4.cpk
+```
+
+Verify each `.ftex` begins with `FTEX`. The 2026-06-07 Balkan extract (52 teams, 655 textures + 195 realUni, 119 MB) is at `D:\Kits\bpb_balkan_bpb2026-v1\` with `balkan_teams_manifest.csv`.
+
 ## Out of scope
 
 - Kitserver slot folder creation, `config.txt` / `order.ini` / `map.txt` editing
