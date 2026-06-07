@@ -80,19 +80,23 @@ Wraps `tools/kit-to-ftex.ps1`. PNG -> DDS (DXT5, via ImageMagick `magick`) -> FT
 
 Any patch's kits live in its **uniform archive** (PES2021 packaging: `dt34_g4.cpk`; confirm for the patch at hand with `cpk list <cpk> | grep -c uniform`), in two parts:
 
-- **Textures:** `Asset/model/character/uniform/texture/#windx11/u<NNNN>g<slot>[_back|_leg|_name|_name_ex].ftex` — `NNNN` is the team ID zero-padded to 4 digits (272 -> `u0272`). In-cpk these use `g<slot>`; kitserver expects `u<id>p<slot>` — a rename on import, not a format change.
+- **Textures:** `Asset/model/character/uniform/texture/#windx11/u<NNNN><slot>[_back|_leg|_name|_name_ex].ftex` — `NNNN` is the team ID zero-padded to 4 digits (272 -> `u0272`); slot is **`p1..p4` (player)** or **`g1..g3` (goalkeeper)**. These names match the kitserver `config.txt` `KitFile` value exactly, so no rename on import. (Watch the trap: `g` is goalkeeper, not "graphics" — extract both `p` and `g`, or you get GK kits only.)
 - **Definitions:** `common/character0/model/character/uniform/team/<id>/<id>_DEF_{1st,2nd,3rd,GK1st,...}_realUni.bin` — colours / slot setup; reference when writing the kitserver `config.txt`.
 
 Map team IDs to leagues via the sider **kit-server map** (`<install>/sider/content/kit-server/map.txt`, lines `team-id, "League\Team"`) or a team CSV.
 
-Extract a subset repeatably with `cpk extract --prefix` (one pass; exits non-zero if a prefix matches nothing). Per team `<id>` (`PAD` = `%04d`):
+Extract a subset repeatably with `cpk extract --prefix` (one pass; exits non-zero if a prefix matches nothing). Per team `<id>` (`PAD` = `%04d`); the `u<PAD>` texture prefix catches both player and GK slots:
 
 ```sh
-cpk extract --prefix "common/character0/model/character/uniform/team/<id>/"   --out <dir> <uniform.cpk>
-cpk extract --prefix "Asset/model/character/uniform/texture/#windx11/u<PAD>g" --out <dir> <uniform.cpk>
+cpk extract --prefix "common/character0/model/character/uniform/team/<id>/"  --out <dir> <uniform.cpk>
+cpk extract --prefix "Asset/model/character/uniform/texture/#windx11/u<PAD>" --out <dir> <uniform.cpk>
 ```
 
 Verify each extracted `.ftex` begins with `FTEX`.
+
+### Kitserver folder layout (how a kit becomes self-contained)
+
+A team's kitserver content is `<install>/sider*/content/kit-server/<League>/<Team>/` with per-slot subfolders `p1..p4` (player) + `g1..g3` (GK), each holding a `config.txt`, plus `order.ini` / `gk_order.ini`. `KitServer.lua` loads the texture as `<slot>/<KitFile>.ftex` (e.g. `p1/u0272p1.ftex`). A patch that keeps its textures in the cpk (like BPB) ships **config-only** slot folders and falls back to the native cpk texture; to move that kit to a different install, drop the extracted `u<id><slot>*.ftex` into the slot folder so it is self-contained. `map.txt` maps `team-id, "League\Team"`; the kit only applies if the destination game actually has that team ID.
 
 ## Out of scope
 
