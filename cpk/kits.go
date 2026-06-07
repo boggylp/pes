@@ -29,7 +29,29 @@ const uniformTexDir = "Asset/model/character/uniform/texture/#windx11/"
 var (
 	kitMapLineRe = regexp.MustCompile(`^\s*(\d+)\s*,\s*"([^"]+)"`)
 	texKeyRe     = regexp.MustCompile(`(?i)^(KitFile|BackNumbersFile|ChestNumbersFile|LegNumbersFile|NameFontFile)=(.*)$`)
+	texBaseRe    = regexp.MustCompile(`^u\d+[pg]\d+`)
 )
+
+// buildFamilyIndex groups every uniform texture in the cpk by its base name
+// (e.g. u0272p3 -> [u0272p3, u0272p3_back, u0272p3_srm, u0272p3_name_ex, ...]).
+// The game loads _srm and _name_ex by naming convention, so the kitserver
+// config.txt never names them; this lets the pack carry the whole family.
+func buildFamilyIndex(r *Reader) map[string][]string {
+	prefix := normalizePath(uniformTexDir)
+	fam := map[string][]string{}
+	for _, f := range r.Files() {
+		p := normalizePath(f.Path())
+		if !strings.HasPrefix(p, prefix) || !strings.HasSuffix(p, ".ftex") {
+			continue
+		}
+		full := f.Path()
+		name := full[strings.LastIndexAny(full, "/\\")+1 : len(full)-len(".ftex")]
+		if base := texBaseRe.FindString(strings.ToLower(name)); base != "" {
+			fam[base] = append(fam[base], name)
+		}
+	}
+	return fam
+}
 
 type kitMapEntry struct{ id, league, team, rel string }
 
@@ -55,25 +77,30 @@ func parseKitMap(path string) ([]kitMapEntry, error) {
 	return out, sc.Err()
 }
 
-// configTextures returns the texture base names a kitserver config.txt references.
-func configTextures(path string) ([]string, error) {
+// configTextures returns the texture base names a kitserver config.txt
+// references and, separately, its KitFile value (the family base name).
+func configTextures(path string) (names []string, kitFile string, err error) {
 	f, err := os.Open(path)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	defer f.Close()
-	var names []string
 	sc := bufio.NewScanner(f)
 	for sc.Scan() {
 		m := texKeyRe.FindStringSubmatch(strings.TrimRight(sc.Text(), "\r"))
 		if m == nil {
 			continue
 		}
-		if v := strings.TrimRight(m[2], " \t"); v != "" {
-			names = append(names, v)
+		v := strings.TrimRight(m[2], " \t")
+		if v == "" {
+			continue
+		}
+		names = append(names, v)
+		if strings.EqualFold(m[1], "KitFile") {
+			kitFile = v
 		}
 	}
-	return names, sc.Err()
+	return names, kitFile, sc.Err()
 }
 
 func copyTree(src, dst string) error {
@@ -138,6 +165,8 @@ func cmdKits(args []string) {
 		os.Exit(1)
 	}
 
+	fam := buildFamilyIndex(r)
+
 	var mapBuf strings.Builder
 	fmt.Fprintf(&mapBuf, "# %s\n# team-id, \"League\\Team\"\n\n", *label)
 	var teams, tex, missing int
@@ -158,11 +187,20 @@ func cmdKits(args []string) {
 			if err != nil || d.IsDir() || d.Name() != "config.txt" {
 				return err
 			}
-			names, err := configTextures(p)
+			names, kitFile, err := configTextures(p)
 			if err != nil {
 				return err
 			}
-			for _, n := range names {
+			// config-named textures plus the rest of the KitFile family
+			// (_srm, _name_ex) the game loads by naming convention.
+			want := append(names, fam[strings.ToLower(kitFile)]...)
+			seen := map[string]bool{}
+			for _, n := range want {
+				key := strings.ToLower(n)
+				if n == "" || seen[key] {
+					continue
+				}
+				seen[key] = true
 				f, ok := r.FindFile(uniformTexDir + n + ".ftex")
 				if !ok {
 					missing++
