@@ -27,7 +27,7 @@
 
 ## Tools
 
-Build each with `go build .` in its subdir. Usage in @README.md; operational detail in the `pes-*` skills. Subdirs: `evoweb` (XenForo scraper; always `--output data/<name>.json`), `cpk` (CPK reader/extractor), `pesdb` (roster extractor; EDIT saves need ejogc327's `decrypter21.exe`), `faces` (map/detect), `tools/` (PowerShell helpers).
+Build each with `go build .` in its subdir. Usage in @README.md; operational detail in the `pes-*` skills. Subdirs: `evoweb` (XenForo scraper; always `--output data/<name>.json`), `cpk` (CPK reader/extractor + `cpk kits` kitserver-pack assembler), `pesdb` (roster extractor; EDIT saves need ejogc327's `decrypter21.exe`), `faces` (map/detect), `uniparam` (UniColor.bin/UniformParameter.bin editor; extend a team's kit-slot count via livecpk), `tools/` (PowerShell helpers).
 
 Gotchas beyond README:
 

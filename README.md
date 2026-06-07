@@ -5,10 +5,11 @@ Pro Evolution Soccer / SP Football Life related utilities.
 ## Structure
 
 ```text
-cpk/        CRI Middleware CPK archive reader (Go)
+cpk/        CRI Middleware CPK archive reader + kitserver pack assembler (Go)
 evoweb/     XenForo forum scraper (Go)
 faces/      Player face mapping and mismatch detection (Go)
 pesdb/      PES 2021 player roster extractor (Go)
+uniparam/   UniColor.bin / UniformParameter.bin editor: extend a team's kit-slot count (Go)
 tools/      Local Windows helpers for PES and Football Life workflows
 ```
 
