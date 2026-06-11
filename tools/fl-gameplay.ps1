@@ -32,12 +32,7 @@ function Get-SystemFile {
 function Get-TrackingLines {
     param([string]$SiderPath)
 
-    Get-Content $SiderPath | Where-Object {
-        $_ -match '^; Current gameplay stack' -or
-        $_ -match '^; dt13 ' -or
-        $_ -match '^; dt18 ' -or
-        $_ -match '^; FL_2026\.exe '
-    }
+    Get-Content $SiderPath | Where-Object { $_ -match '^\s*; gameplay:' }
 }
 
 function Get-GameplaySiderLines {
@@ -58,22 +53,32 @@ function Update-TrackingComment {
         [string]$Value
     )
 
-    $replacement = "; $Component $Value"
+    $stamp = '| applied {0} {1}' -f (Get-Date -Format 'yyyy-MM-dd'), [System.Net.Dns]::GetHostName()
     $lines = [System.Collections.Generic.List[string]]::new()
     $lines.AddRange([string[]](Get-Content $SiderPath))
 
     $updated = $false
     for ($i = 0; $i -lt $lines.Count; $i++) {
-        if ($lines[$i] -match "^; $Component ") {
-            $lines[$i] = $replacement
-            $updated = $true
+        if ($lines[$i] -notmatch '^\s*; gameplay:') {
+            continue
         }
+
+        $line = $lines[$i] -replace '\s*\| applied .*$', ''
+        if ($line -match "\b$Component=\S+") {
+            $line = $line -replace "\b$Component=\S+", "$Component=$Value"
+        }
+        else {
+            $line = "$line $Component=$Value"
+        }
+        $lines[$i] = "$line $stamp"
+        $updated = $true
     }
 
     if (-not $updated) {
+        $replacement = "; gameplay: $Component=$Value $stamp"
         $insertAt = -1
         for ($i = 0; $i -lt $lines.Count; $i++) {
-            if ($lines[$i] -match '^overlay\.enabled') {
+            if ($lines[$i] -match '^\s*overlay\.enabled') {
                 $insertAt = $i
                 break
             }
@@ -208,7 +213,7 @@ function Switch-VanillaComponent {
 
         Copy-Item $targetPath $backupPath
         Copy-Item $source.Path $targetPath -Force
-        Update-TrackingComment -SiderPath $siderPath -Component $component -Value 'vanilla'
+        Update-TrackingComment -SiderPath $siderPath -Component $component -Value ('vanilla({0})' -f $sourceHash.Substring(0, 8).ToLower())
 
         [pscustomobject]@{
             Component = $component
