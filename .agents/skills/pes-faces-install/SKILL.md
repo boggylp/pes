@@ -56,7 +56,7 @@ Faces are the easiest mod to install wrong: silent drops on length mismatch, eas
     - **Direct ID match.** If the source folder ID literally exists in the destination CSV, copy the folder as-is to `dest-folder/<id>/`. No remap needed.
     - **Source folder rename.** When the live name has fewer parts than the source name (e.g. live `Dion Beljo` vs source `Dion Drena Beljo`), the matcher fails on `len(targetParts) != len(candidateParts)` at `normalize.go:82`. Rename the source folder to match the live name's part count and rerun. The embedded FPK ID still gets remapped correctly.
 
-6. **Extract directly to the final livecpk path.** No temp dirs, no intermediate copies, no renames. One step, final destination. See [[feedback_extract_directly]].
+6. **Extract directly to the final livecpk path.** No temp dirs, no intermediate copies, no renames. One step, final destination.
 
 7. **Write a rollback record** next to the source archives:
 
@@ -70,13 +70,13 @@ Faces are the easiest mod to install wrong: silent drops on length mismatch, eas
 
 - **Length mismatches are silent.** Always cross-check `map`'s reported installed count against the source folder count. The difference is the silent-drop set.
 - **Live DB is authoritative.** `faces/samples/FL26_players.csv` is a snapshot and lags the live install by weeks; do not use it for an install.
-- **Never `rm` source archives** before the install is verified in-game. See [[feedback_never_rm_user_data]].
-- **SYSTEM cache delete is not warranted for faces.** Faces load via livecpk; the `SYSTEM00000000` cache is not the gating mechanism. Don't propose the delete for a face install. (Propose-and-ask is the universal rule per [[feedback_system_cache_scope]]; here the answer should be don't propose it.)
+- **Never `rm` source archives** before the install is verified in-game.
+- **SYSTEM cache delete is not warranted for faces.** Faces load via livecpk; the `SYSTEM00000000` cache is not the gating mechanism. Don't propose the delete for a face install. (Propose-and-ask is the universal SYSTEM-cache rule; here the answer should be don't propose it.)
 - **Sider is already configured** (`cpk.root = .\livecpk\root`, `livecpk.enabled = 1`). Dropping ID folders into the face root is enough; do not edit `sider.ini` for a face install.
-- **Hostname matters for any logged finding.** If you record a face install outcome in the AIKB or diary, tag the machine. See [[feedback_pes_log_hostname]].
+- **Hostname matters for any logged finding.** If you record a face install outcome in the AIKB or diary, tag the machine.
 
 ## Out of scope
 
-- Roster / player ID extraction from cpk + Player.bin: see [[pes-roster-extract]].
-- Kit textures: see [[pes-kit-ftex]].
+- Roster / player ID extraction from cpk + Player.bin: see pes-roster-extract.
+- Kit textures: see pes-kit-ftex.
 - Modifying the embedded FPK structure for cross-length-ID remapping. The `map` tool is intentionally length-safe; that work needs a different tool.

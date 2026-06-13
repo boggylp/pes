@@ -33,7 +33,7 @@ The user's recurring entry point for any gameplay question: "what's running on t
     hostname
     ```
 
-    Expected: `BogambeDesktop` (FL26 desktop) or `DESKTOP-J0MDFMU` (BPB laptop). Every AIKB log entry, every commit message, every diary entry must name the host. See [[feedback_pes_log_hostname]].
+    Expected: `BogambeDesktop` (FL26 desktop) or `DESKTOP-J0MDFMU` (BPB laptop). Every AIKB log entry, every commit message, every diary entry must name the host.
 
 3. Resolve hashes against `~/dev/priv/ai-knowledge-base/wiki/pes/gameplay-combos-fl26.md` (or `bpb-2026.md` for the laptop). The AIKB tables list known hashes per release; match by hash, not by filename.
 
@@ -49,15 +49,15 @@ The user's recurring entry point for any gameplay question: "what's running on t
 
 ## Pitfalls
 
-- **Filename is not identity.** A file called `dt18_all.cpk.f4l` proves nothing; hash it. See [[feedback_investigate_before_assuming]].
-- **Never edit individual mod values.** Add or remove mods as whole units; do not tweak a single line inside someone else's lua. See [[feedback_gameplay_mods]].
-- **Anti-Cheat.lua is debunked.** Holland's `Anti-Cheat.lua` has no valid AOB addresses; use `Dynamic_Difficulty` instead. See [[feedback_anticheat_debunked]].
-- **DT18 also unlocks animations**, not just DT13. alexfe87's DT18 is the animation source for that combo. See [[feedback_pes_dt_files]].
+- **Filename is not identity.** A file called `dt18_all.cpk.f4l` proves nothing; hash it.
+- **Never edit individual mod values.** Add or remove mods as whole units; do not tweak a single line inside someone else's lua.
+- **Anti-Cheat.lua is debunked.** Holland's `Anti-Cheat.lua` has no valid AOB addresses; use `Dynamic_Difficulty` instead.
+- **DT18 also unlocks animations**, not just DT13. alexfe87's DT18 is the animation source for that combo.
 - **Do not propose changes after a status check** unless the user explicitly approves the install/change step. Evidence-first only.
-- **Status checks are read-only.** Never delete `SYSTEM00000000` during a status check. If the status surfaces a likely SYSTEM-cache mismatch (e.g. dt13/dt18/exe just changed without invalidation), propose the deletion separately and ask before running. See [[feedback_system_cache_scope]].
+- **Status checks are read-only.** Never delete `SYSTEM00000000` during a status check. If the status surfaces a likely SYSTEM-cache mismatch (e.g. dt13/dt18/exe just changed without invalidation), propose the deletion separately and ask before running.
 
 ## Out of scope
 
-- Performing a gameplay switch: see [[pes-gameplay-switch]].
-- Writing the verdict to the AIKB: see [[pes-aikb-log]].
+- Performing a gameplay switch: see pes-gameplay-switch.
+- Writing the verdict to the AIKB: see pes-aikb-log.
 - Editing sider config to add or remove modules.

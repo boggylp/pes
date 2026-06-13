@@ -13,7 +13,7 @@ Reads `Player.bin` out of a CPK, optionally merges custom adds from a decrypted 
 ## When to use
 
 - Cross-version roster comparison (BPB vs FL26)
-- Validating face mappings against the actual shipped roster (precondition for [[pes-faces-install]])
+- Validating face mappings against the actual shipped roster (precondition for pes-faces-install)
 - Answering "is player X in this cpk?" with evidence
 - Generating the CSV used by the `faces` tool
 
@@ -83,7 +83,7 @@ EDIT records start at file offset 112.
 ## Pitfalls
 
 - **Player.bin is not encrypted.** Earlier "encrypted Player.bin" / "zero-filled Player.bin" / "~2 KB opaque front" claims were all wrong. It is plain WESYS+zlib from byte 0. The apparent garbage front was the cpk extraction offset bug (a reused `rowReader` misreading ContentOffset → every file read 2048 B too early), fully fixed 2026-06-07 (see the ContentOffset bug section above). `pesdb` searches for the WESYS magic, so it tolerated the old prefix and still produced correct rosters.
-- **Pick the right CPK.** Running `extract` against `dt00` when `dt10` overrides it gives the base roster, not the effective one. Verify with [[pes-gameplay-status]] which CPK actually exists in `Data/`.
+- **Pick the right CPK.** Running `extract` against `dt00` when `dt10` overrides it gives the base roster, not the effective one. Verify with pes-gameplay-status which CPK actually exists in `Data/`.
 - **BPB and FL26 are distinct.** Their `Player.bin` files differ. Do not assume a roster CSV from one is valid against the other; regenerate per install.
 - **EDIT save decryption is third-party.** `decrypter21.exe` is the only known working decrypter; if it's not available, the EDIT-save adds cannot be merged and the CSV is base-only.
 - **The repo's `cpk` tool falls back to CRILAYLA decompression but PES 2017-2021 cpks usually store uncompressed.** A "compression unknown" error usually means the inner path is wrong, not that the file is encrypted.
@@ -105,5 +105,5 @@ head -c6 "<dir>/#Win/face.fpk"   # must print: foxfpk
 ## Out of scope
 
 - Editing player records: the `pesdb` tool is read-only.
-- Installing faces against the resulting CSV: see [[pes-faces-install]].
+- Installing faces against the resulting CSV: see pes-faces-install.
 - Decrypting the EDIT save itself; that needs `decrypter21.exe` from ejogc327.

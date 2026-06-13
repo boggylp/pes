@@ -22,7 +22,7 @@ Pull thread data with the scraper, query with duckdb, cross-check the AIKB. Neve
 
 2. **Check scraped data freshness.** `evoweb/data/<name>-<YYYY-MM-DD>.json` is the convention. If the latest scrape relevant to the question is older than **one week**, rescrape before answering. See repo `AGENTS.md`.
 
-3. **Scrape with `--output`, never to stdout.** See [[feedback_scrape_output]].
+3. **Scrape with `--output`, never to stdout.**
 
     ```sh
     cd evoweb
@@ -45,19 +45,19 @@ Pull thread data with the scraper, query with duckdb, cross-check the AIKB. Neve
 
 5. **Cite the source** in any answer: thread URL, post date, author. Evoweb is the canonical source for community releases; do not rely on second-hand summaries.
 
-6. **Update the AIKB article** if findings are worth preserving. See [[pes-aikb-log]].
+6. **Update the AIKB article** if findings are worth preserving. See pes-aikb-log.
 
 ## Pitfalls
 
-- **Never tell the user "search evoweb"** or "check the thread". Scrape it or grep existing data yourself. See [[feedback_use_scraper_first]].
-- **Never commit scraped data.** `evoweb/data/` is gitignored. Do not suggest committing the JSON files. See [[feedback_never_commit_scraped_data]].
-- **Always `--output data/<name>.json`.** Scraping to stdout drops the only durable record of the page state at scrape time. See [[feedback_scrape_output]].
+- **Never tell the user "search evoweb"** or "check the thread". Scrape it or grep existing data yourself.
+- **Never commit scraped data.** `evoweb/data/` is gitignored. Do not suggest committing the JSON files.
+- **Always `--output data/<name>.json`.** Scraping to stdout drops the only durable record of the page state at scrape time.
 - **Stale data lies.** A two-month-old scrape of the F4L thread will miss a release. Verify the latest post date against the live page before drawing conclusions from old JSON.
 - **Cookie override is for debugging only.** `--cookie` / `--cookie-file` bypass stored credentials; the default login flow is the right one for routine scrapes.
-- **Adversarial self-review.** Forum claims are user-generated. A single post claiming a patch "fixes everything" is a hypothesis, not a fact. Look for multiple independent confirmations or mark the claim **Not verified** in the AIKB. See [[pes-aikb-log]].
+- **Adversarial self-review.** Forum claims are user-generated. A single post claiming a patch "fixes everything" is a hypothesis, not a fact. Look for multiple independent confirmations or mark the claim **Not verified** in the AIKB. See pes-aikb-log.
 
 ## Out of scope
 
-- Reading the live install state: see [[pes-gameplay-status]].
-- Performing a gameplay switch based on findings: see [[pes-gameplay-switch]].
-- Writing the durable finding to the AIKB: see [[pes-aikb-log]].
+- Reading the live install state: see pes-gameplay-status.
+- Performing a gameplay switch based on findings: see pes-gameplay-switch.
+- Writing the durable finding to the AIKB: see pes-aikb-log.

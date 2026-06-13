@@ -15,7 +15,7 @@ Switches are destructive (overwrite live files in the install). Evidence first, 
 
 ## Steps
 
-1. **Run [[pes-gameplay-status]] first.** Capture current hashes and the active sider config. The switch is reversible only if the prior state is recorded.
+1. **Run pes-gameplay-status first.** Capture current hashes and the active sider config. The switch is reversible only if the prior state is recorded.
 
 2. **Inventory the full gameplay stack** to confirm what the switch will actually change. A vanilla `dt18` swap is meaningless if a livecpk root or a `GamePlay-v2.lua` module is still routing the gameplay through someone's mod.
 
@@ -23,7 +23,7 @@ Switches are destructive (overwrite live files in the install). Evidence first, 
 
     - which file(s) will be replaced
     - source hash -> destination hash
-    - whether SYSTEM cache invalidation is warranted (it is for dt13 / dt18 / exe; it is not for kits / cameras / luas, see [[feedback_system_cache_scope]])
+    - whether SYSTEM cache invalidation is warranted (it is for dt13 / dt18 / exe; it is not for kits / cameras / luas)
     - that you will ASK the user before any SYSTEM delete, never run it as part of the switch
 
 4. For a vanilla switch, prefer the helper:
@@ -35,26 +35,26 @@ Switches are destructive (overwrite live files in the install). Evidence first, 
 
     The helper restores the vanilla copy (loose files under `%USERPROFILE%\MEGA\gaming\pes\gameplay\vanilla\`, falling back to `dt13 & dt18 vanilla.rar`) and updates the `; gameplay:` tracking comment in `SiderAddons\sider.ini`.
 
-5. For a non-vanilla switch (e.g. install a new gameplay release), extract directly to the final live path; no temp dirs, no intermediate copies. See [[feedback_extract_directly]].
+5. For a non-vanilla switch (e.g. install a new gameplay release), extract directly to the final live path; no temp dirs, no intermediate copies.
 
-6. After the switch, re-run [[pes-gameplay-status]] to confirm the live hashes match the intended destination.
+6. After the switch, re-run pes-gameplay-status to confirm the live hashes match the intended destination.
 
 ## Pitfalls
 
 - **Never partial-switch.** Replacing `dt18` while leaving a previous combo's livecpk root or `lua.module` entry active produces a mixed state the user did not ask for. If a switch can leave the stack mixed, stop and ask.
-- **Propose, do not execute, the `SYSTEM00000000` delete.** For dt13 / dt18 / exe switches the cache invalidation is warranted; surface it as an explicit step and ask the user before running. Never bundle it silently. See [[feedback_system_cache_scope]].
+- **Propose, do not execute, the `SYSTEM00000000` delete.** For dt13 / dt18 / exe switches the cache invalidation is warranted; surface it as an explicit step and ask the user before running. Never bundle it silently.
 - **No file is "obviously unrelated".** If a mod readme bundles an animation pack, a hook, or a livecpk root as part of its gameplay, treat all of it as the gameplay stack. Verify from the mod's instructions before excluding anything.
-- **The user-provided install path wins.** If the user names an install path, use it; do not search broader drives. The current path on this machine is `C:\Program Files (x86)\SP Football Life 2026\`. See [[reference_fl26_install]].
-- **Do not create backups the user did not ask for.** The rollback source for a swap is the original mod archive or the `vanilla\` tree already on disk, not a fresh copy of the live file; MEGA is not a backup target. If the prior live file exists nowhere else and would be lost by the overwrite, say so and ask before proceeding. Explicit user-requested backups go to `D:\Backup\`. See [[feedback_backups_zip_local]], [[feedback_never_rm_user_data]].
+- **The user-provided install path wins.** If the user names an install path, use it; do not search broader drives. The path varies per machine — do not hardcode it here; the user names it per session.
+- **Do not create backups the user did not ask for.** The rollback source for a swap is the original mod archive or the `vanilla\` tree already on disk, not a fresh copy of the live file; MEGA is not a backup target. If the prior live file exists nowhere else and would be lost by the overwrite, say so and ask before proceeding. Explicit user-requested backups go to `D:\Backup\`.
 - **Senior-developer judgement.** No "temporary workaround" gameplay configs. If a switch produces a mixed state, fix the mix; do not hide it behind a wrapper lua. See AGENTS.md "Root causes, not symptoms".
 
 ## Canonical references
 
 - Sider config layout (section order, `lua.module` semantics, `cpk.root` semantics, cache behavior): [SOK Unleashed v9 thread](https://evoweb.uk/threads/soulsofkaos-unleashed-9-pes2013.101010/).
-- Gameplay archives: `%USERPROFILE%\MEGA\gaming\pes\gameplay\` ([[reference_gameplay_mods_path]]).
+- Gameplay archives: `%USERPROFILE%\MEGA\gaming\pes\gameplay\`.
 
 ## Out of scope
 
-- Reading the current state: see [[pes-gameplay-status]].
-- Researching whether a new release is worth installing: see [[pes-evoweb-research]].
-- Logging the playtest verdict: see [[pes-aikb-log]].
+- Reading the current state: see pes-gameplay-status.
+- Researching whether a new release is worth installing: see pes-evoweb-research.
+- Logging the playtest verdict: see pes-aikb-log.

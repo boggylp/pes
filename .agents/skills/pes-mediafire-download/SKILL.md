@@ -72,12 +72,12 @@ mdrs --tries 3 -o ~/tmp/mdrs-<short-name> "<url>"
 - **Folder URL vs file URL.** `mediafire.com/folder/<id>` works. `mediafire.com/file/<id>` is a single file; mdrs handles it but Gopeed is the lighter tool.
 - **Paths with spaces.** Always quote `-o` paths on Windows (`"$USERPROFILE/MEGA/..."`), `mdrs` does not re-quote them internally.
 - **Output dir already populated.** `mdrs` overwrites without prompting. If re-downloading, the prior copy is gone the moment a same-named file lands.
-- **Login walls.** MediaFire occasionally throws an interstitial for very large folders. `mdrs` cannot solve that; fall back to a logged-in browser via the [[playwright]] skill's persistent-profile mode.
-- **Never `rm` the download** before verifying contents in-game. Mirrors [[pes-faces-install]] rollback discipline.
+- **Login walls.** MediaFire occasionally throws an interstitial for very large folders. `mdrs` cannot solve that; fall back to a logged-in browser via the playwright skill's persistent-profile mode.
+- **Never `rm` the download** before verifying contents in-game. Mirrors pes-faces-install rollback discipline.
 
 ## After download
 
 - Verify file count and size against the forum post / mod README before any install step.
-- For gameplay mods: follow [[pes-gameplay-switch]] for the actual install.
-- For faces: route the extracted folder through [[pes-faces-install]].
-- Log non-obvious findings (working URL for a mod, hash of the canonical archive) in the AIKB via [[pes-aikb-log]].
+- For gameplay mods: follow pes-gameplay-switch for the actual install.
+- For faces: route the extracted folder through pes-faces-install.
+- Log non-obvious findings (working URL for a mod, hash of the canonical archive) in the AIKB via pes-aikb-log.

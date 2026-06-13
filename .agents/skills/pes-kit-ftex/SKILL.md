@@ -1,6 +1,6 @@
 ---
 name: pes-kit-ftex
-description: '**Invoke this skill BEFORE converting a kit PNG to a PES `.ftex` file or producing a kitserver-named texture.** Covers `tools/kit-to-ftex.ps1` (the PNG -> DDS (DXT5, via ImageMagick) -> FTEX (via Atvaark FtexTool 0.3.3) pipeline), the kitserver naming convention `u<team_id><p|g><slot>.ftex`, team-name resolution via `FL26_teams.txt` substring match, the live-install destination under the FL26 kitserver / livecpk root (path varies per machine), the DXT5-vs-PixelFormatType-11 caveat (DXT5 is broadly compatible but may not exactly match the engine-preferred format), and the kit-install scope rule for SYSTEM cache, do not propose the delete for kits because it is not warranted; see [[feedback_system_cache_scope]] for the universal propose-and-ask rule. Triggers: "convert this kit", "make an FTEX for <team>", "kit from pesmaster.com", "produce u<id>p<slot>.ftex", "install this kit texture".'
+description: '**Invoke this skill BEFORE converting a kit PNG to a PES `.ftex` file or producing a kitserver-named texture.** Covers `tools/kit-to-ftex.ps1` (the PNG -> DDS (DXT5, via ImageMagick) -> FTEX (via Atvaark FtexTool 0.3.3) pipeline), the kitserver naming convention `u<team_id><p|g><slot>.ftex`, team-name resolution via `FL26_teams.txt` substring match, the live-install destination under the FL26 kitserver / livecpk root (path varies per machine), the DXT5-vs-PixelFormatType-11 caveat (DXT5 is broadly compatible but may not exactly match the engine-preferred format), and the kit-install scope rule for SYSTEM cache, do not propose the delete for kits because it is not warranted (propose-and-ask is the universal SYSTEM-cache rule). Triggers: "convert this kit", "make an FTEX for <team>", "kit from pesmaster.com", "produce u<id>p<slot>.ftex", "install this kit texture".'
 metadata:
   trusted_sources:
     - https://github.com/Atvaark/FtexTool
@@ -70,7 +70,7 @@ Wraps `tools/kit-to-ftex.ps1`. PNG -> DDS (DXT5, via ImageMagick `magick`) -> FT
 
 ## Pitfalls
 
-- **SYSTEM cache delete is not warranted for kits.** Kits load via kitserver / livecpk, not via the `SYSTEM00000000` cache gate. Don't propose the delete for a kit install. (Propose-and-ask is the universal rule per [[feedback_system_cache_scope]]; here the answer should be don't propose it.)
+- **SYSTEM cache delete is not warranted for kits.** Kits load via kitserver / livecpk, not via the `SYSTEM00000000` cache gate. Don't propose the delete for a kit install. (Propose-and-ask is the universal SYSTEM-cache rule; here the answer should be don't propose it.)
 - **DXT5 vs PixelFormatType 11 caveat.** The tool produces DXT5. If a specific slot stutters or renders wrong, the original may have been PixelFormatType 11 (likely BC7). Verify visually; the tool does not match Konami's per-slot preferred format.
 - **Team-name match is a substring, not exact.** `Hajduk` will match `Hajduk Split` and `HNK Hajduk` if both exist; check `FL26_teams.txt` before relying on the auto-name.
 - **Slot scaffolding is the user's job.** This tool produces the texture only; if the slot folder doesn't already have its `config.txt` / `order.ini` / `map.txt`, dropping in the FTEX alone may not be enough.
@@ -103,4 +103,4 @@ A team's kitserver content is `<install>/sider*/content/kit-server/<League>/<Tea
 - Kitserver slot folder creation, `config.txt` / `order.ini` / `map.txt` editing
 - Multi-file kit packs (`_back`, `_leg`, `_name`)
 - Producing non-DXT5 FTEX formats
-- Any work on player faces: see [[pes-faces-install]]
+- Any work on player faces: see pes-faces-install

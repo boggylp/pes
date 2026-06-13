@@ -13,8 +13,8 @@ The final step of most PES sessions: write durable findings into `wiki/pes/`. Ho
 ## When to use
 
 - After a playtest the user wants recorded
-- After [[pes-evoweb-research]] surfaces a fact worth keeping
-- After [[pes-gameplay-status]] captures a noteworthy live install state
+- After pes-evoweb-research surfaces a fact worth keeping
+- After pes-gameplay-status captures a noteworthy live install state
 - When the user says any variant of "log this to the KB" / "save to obsidian-kb" / "diary it" with PES content
 
 ## Steps
@@ -34,7 +34,7 @@ The final step of most PES sessions: write durable findings into `wiki/pes/`. Ho
 
     If no article fits, create a new one with a kebab-case filename.
 
-2. **Tag every machine-specific entry with the hostname.** See [[feedback_pes_log_hostname]]. The desktop is `BogambeDesktop`; the laptop is `DESKTOP-J0MDFMU`. Examples:
+2. **Tag every machine-specific entry with the hostname.** The desktop is `BogambeDesktop`; the laptop is `DESKTOP-J0MDFMU`. Examples:
 
     ```markdown
     ## User's best combo verdict (2026-05-20, `BogambeDesktop`)
@@ -44,9 +44,9 @@ The final step of most PES sessions: write durable findings into `wiki/pes/`. Ho
 
 3. **Match the AIKB house style.** Lead with the conclusion, then evidence. Tight bullets and short factual sentences over prose. Mark hypotheses **once** with `**Not verified**` and move on; do not hedge again. No multi-paragraph qualifications, no redundant restatements. See repo `AGENTS.md` "AIKB notes are concise and punctual".
 
-4. **Cite hashes, not filenames** for any gameplay claim. Run [[pes-gameplay-status]] first if hashes are not yet in hand.
+4. **Cite hashes, not filenames** for any gameplay claim. Run pes-gameplay-status first if hashes are not yet in hand.
 
-5. **Cross-link related articles** with `[[wiki-name]]`. The pkb is an Obsidian vault; backlinks make it navigable.
+5. **Cross-link related articles** using the vault's Obsidian wikilink syntax. The pkb is an Obsidian vault; backlinks make it navigable.
 
 6. **Commit and push the vault** when the entry is durable:
 
@@ -61,7 +61,7 @@ The final step of most PES sessions: write durable findings into `wiki/pes/`. Ho
 
 ## Pitfalls
 
-- **No hostname = entry is wrong.** Two machines feed this vault. An untagged playtest verdict is unfalsifiable across machines. See [[feedback_pes_log_hostname]].
+- **No hostname = entry is wrong.** Two machines feed this vault. An untagged playtest verdict is unfalsifiable across machines.
 - **No status theater.** Drop "I have updated the AIKB", "I will now log this", "I should have …". Name the file edited and stop. See `AGENTS.md` "Outbound text is the highest priority".
 - **No marketing in the wiki.** "Best ever", "revolutionary", "always" are wrong even when the user is excited. Write what was tested, on what hashes, with what verdict.
 - **Quote evoweb posts surgically.** Single sentence plus URL, never multi-paragraph copy. See `AGENTS.md` "Evidence and citations".
@@ -69,6 +69,6 @@ The final step of most PES sessions: write durable findings into `wiki/pes/`. Ho
 
 ## Out of scope
 
-- Running the status check that produces the verdict: see [[pes-gameplay-status]].
-- Scraping evoweb for the facts being logged: see [[pes-evoweb-research]].
+- Running the status check that produces the verdict: see pes-gameplay-status.
+- Scraping evoweb for the facts being logged: see pes-evoweb-research.
 - Anything in the database/ side of the vault. This skill is wiki-only.
