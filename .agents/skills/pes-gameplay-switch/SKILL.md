@@ -1,6 +1,6 @@
 ---
 name: pes-gameplay-switch
-description: '**Invoke this skill BEFORE proposing or running any switch of `dt13_all.cpk`, `dt18_all.cpk`, `FL_2026.exe`, or other gameplay-stack file on the live PES / Football Life install.** Covers `tools/fl-gameplay.ps1 switch-dt13-vanilla` / `switch-dt18-vanilla`, the canonical gameplay backup root at `%USERPROFILE%\MEGA\gaming\pes\gameplay\`, the SYSTEM cache propose-and-ask rule (propose `SYSTEM00000000` deletion when warranted — dt13/dt18/exe or EDIT-save replacements that prompt "create edit data" — never for kits/cameras/luas; always ask before running), the no-partial-switch rule, and the explicit-user-approval gate. Triggers: "switch to vanilla dt18", "go back to stock", "restore dt13", "swap in alexfe87", "install F4L v5.1", any phrase that implies replacing a gameplay-stack file.'
+description: '**Invoke this skill BEFORE proposing or running any switch of `dt13_all.cpk`, `dt18_all.cpk`, `FL_2026.exe`, or other gameplay-stack file on the live PES / Football Life install.** Covers `tools/fl-gameplay.ps1 switch-dt13-vanilla` / `switch-dt18-vanilla`, the canonical gameplay archive root at `%USERPROFILE%\MEGA\gaming\pes\gameplay\`, the SYSTEM cache propose-and-ask rule (propose `SYSTEM00000000` deletion when warranted — dt13/dt18/exe or EDIT-save replacements that prompt "create edit data" — never for kits/cameras/luas; always ask before running), the no-partial-switch rule, and the explicit-user-approval gate. Triggers: "switch to vanilla dt18", "go back to stock", "restore dt13", "swap in alexfe87", "install F4L v5.1", any phrase that implies replacing a gameplay-stack file.'
 ---
 
 # PES gameplay switch
@@ -33,7 +33,7 @@ Switches are destructive (overwrite live files in the install). Evidence first, 
     pwsh -File .\tools\fl-gameplay.ps1 switch-dt18-vanilla
     ```
 
-    The helper backs up the current live file under the canonical backup root, restores the vanilla copy (loose files under `%USERPROFILE%\MEGA\gaming\pes\gameplay\vanilla\`, falling back to `dt13 & dt18 vanilla.rar`), and updates the `; gameplay:` tracking comment in `SiderAddons\sider.ini`.
+    The helper restores the vanilla copy (loose files under `%USERPROFILE%\MEGA\gaming\pes\gameplay\vanilla\`, falling back to `dt13 & dt18 vanilla.rar`) and updates the `; gameplay:` tracking comment in `SiderAddons\sider.ini`.
 
 5. For a non-vanilla switch (e.g. install a new gameplay release), extract directly to the final live path; no temp dirs, no intermediate copies. See [[feedback_extract_directly]].
 
@@ -45,7 +45,7 @@ Switches are destructive (overwrite live files in the install). Evidence first, 
 - **Propose, do not execute, the `SYSTEM00000000` delete.** For dt13 / dt18 / exe switches the cache invalidation is warranted; surface it as an explicit step and ask the user before running. Never bundle it silently. See [[feedback_system_cache_scope]].
 - **No file is "obviously unrelated".** If a mod readme bundles an animation pack, a hook, or a livecpk root as part of its gameplay, treat all of it as the gameplay stack. Verify from the mod's instructions before excluding anything.
 - **The user-provided install path wins.** If the user names an install path, use it; do not search broader drives. The current path on this machine is `C:\Program Files (x86)\SP Football Life 2026\`. See [[reference_fl26_install]].
-- **Never `rm` files outside a git repo without a verified backup.** The helper makes its own backup for vanilla switches; for any non-helper switch, write the prior file to `%USERPROFILE%\MEGA\gaming\pes\gameplay\` first. See [[feedback_never_rm_user_data]].
+- **Do not create backups the user did not ask for.** The rollback source for a swap is the original mod archive or the `vanilla\` tree already on disk, not a fresh copy of the live file; MEGA is not a backup target. If the prior live file exists nowhere else and would be lost by the overwrite, say so and ask before proceeding. Explicit user-requested backups go to `D:\Backup\`. See [[feedback_backups_zip_local]], [[feedback_never_rm_user_data]].
 - **Senior-developer judgement.** No "temporary workaround" gameplay configs. If a switch produces a mixed state, fix the mix; do not hide it behind a wrapper lua. See AGENTS.md "Root causes, not symptoms".
 
 ## Canonical references

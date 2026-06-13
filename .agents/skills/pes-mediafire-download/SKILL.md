@@ -57,7 +57,7 @@ mdrs --tries 3 \
      "https://www.mediafire.com/folder/<id>/<name>"
 ```
 
-The pes `AGENTS.md` names `%USERPROFILE%\MEGA\gaming\pes\gameplay\` as the canonical gameplay backup root. Use a parallel subdir (`faces`, `kits`, `dt18`, etc.) for non-gameplay mods. Confirm the destination with the user before starting a large download.
+The pes `AGENTS.md` names `%USERPROFILE%\MEGA\gaming\pes\gameplay\` as the canonical gameplay archive root. Use a parallel subdir (`faces`, `kits`, `dt18`, etc.) for non-gameplay mods. Confirm the destination with the user before starting a large download.
 
 Quick scratch download (small, exploratory):
 
