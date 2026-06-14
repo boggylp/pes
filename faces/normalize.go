@@ -156,8 +156,9 @@ func firstNameCompatible(a, b string) bool {
 	if a == b {
 		return true
 	}
-	if len(a) == 1 || len(b) == 1 {
-		return a[0] == b[0]
+	ra, rb := []rune(a), []rune(b)
+	if len(ra) == 1 || len(rb) == 1 {
+		return ra[0] == rb[0] // initial match, rune-safe for non-ASCII first names
 	}
 	return strings.HasPrefix(a, b) || strings.HasPrefix(b, a)
 }
