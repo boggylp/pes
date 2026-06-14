@@ -72,19 +72,21 @@ Pesdb files are a `\xff\x10\x81WESYS` magic (at byte 0) + 8-byte size header + z
 | Source       | Offset | Field  |
 | ------------ | ------ | ------ |
 | `Player.bin` | `+0x08` | Id    |
+| `Player.bin` | `+0x1D` | Nationality (byte) |
 | `Player.bin` | `+0x44` | Name  |
 | `Player.bin` | `+0x81` | Shirt |
 | EDIT `data.dat` | `+0x0C` | Id    |
 | EDIT `data.dat` | `+0x42` | Name  |
 | EDIT `data.dat` | `+0x7F` | Shirt |
 
-EDIT records start at file offset 112.
+EDIT records start at file offset 112. Nationality byte (`+0x1D`) is not in `pesdb` output; read it directly. Balkan codes: Croatia 144, Serbia 94, Bosnia 140, Montenegro 97, N.Macedonia 186, Slovenia 214, Albania 126, Kosovo 110 (132 = Austria). EDIT `data.dat` holds only edited/created players, not the full base roster.
 
 ## Pitfalls
 
 - **Player.bin is not encrypted.** Earlier "encrypted Player.bin" / "zero-filled Player.bin" / "~2 KB opaque front" claims were all wrong. It is plain WESYS+zlib from byte 0. The apparent garbage front was the cpk extraction offset bug (a reused `rowReader` misreading ContentOffset → every file read 2048 B too early), fully fixed 2026-06-07 (see the ContentOffset bug section above). `pesdb` searches for the WESYS magic, so it tolerated the old prefix and still produced correct rosters.
 - **Pick the right CPK.** Running `extract` against `dt00` when `dt10` overrides it gives the base roster, not the effective one. Verify with pes-gameplay-status which CPK actually exists in `Data/`.
 - **BPB and FL26 are distinct.** Their `Player.bin` files differ. Do not assume a roster CSV from one is valid against the other; regenerate per install.
+- **The live roster is the patched DB, not the base CPK.** When UML (or any DB patch) is installed, the effective `Player.bin` is the livecpk one (`SiderAddons\livecpk\UML_Database\common\etc\pesdb\Player.bin`), which renumbers some players vs the base CPK / `FL26_players.txt`. For face/ID work, extract that one (or use the install's provided `UML 2026 - Player IDs.csv`). Confirm a known renumbered player (Beljo base `91287` vs UML `58035`).
 - **EDIT save decryption is third-party.** `decrypter21.exe` is the only known working decrypter; if it's not available, the EDIT-save adds cannot be merged and the CSV is base-only.
 - **The repo's `cpk` tool falls back to CRILAYLA decompression but PES 2017-2021 cpks usually store uncompressed.** A "compression unknown" error usually means the inner path is wrong, not that the file is encrypted.
 
