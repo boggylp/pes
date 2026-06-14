@@ -79,7 +79,7 @@ func getPlayerMapping(sourceData, destData []Player) []PlayerMapping {
 func updateFacesStructure(srcFolder, destFolder string, mapping []PlayerMapping, skipExisting bool) {
 	log.Printf("Updating faces structure from %s to %s", srcFolder, destFolder)
 
-	var processed, skipped, lengthMismatched, missingSrc, errors int64
+	var processed, relinked, skipped, missingSrc, errors int64
 
 	// Buffered channel as a work queue; workers consume items in parallel.
 	// Disk I/O dominates each iteration, so 2× CPU is a reasonable default.
@@ -98,6 +98,8 @@ func updateFacesStructure(srcFolder, destFolder string, mapping []PlayerMapping,
 				switch processOne(srcFolder, destFolder, item, skipExisting) {
 				case resultProcessed:
 					atomic.AddInt64(&processed, 1)
+				case resultRelinked:
+					atomic.AddInt64(&relinked, 1)
 				case resultSkippedExisting:
 					atomic.AddInt64(&skipped, 1)
 				case resultMissingSrc:
@@ -110,25 +112,20 @@ func updateFacesStructure(srcFolder, destFolder string, mapping []PlayerMapping,
 	}
 
 	for _, item := range mapping {
-		// ID length must match for hex replacement to work; checked on the
-		// dispatcher side so length-mismatch counting stays single-threaded.
-		if len(item.SrcPlayerID) != len(item.DestPlayerID) {
-			lengthMismatched++
-			continue
-		}
 		ch <- item
 	}
 	close(ch)
 	wg.Wait()
 
-	log.Printf("Successfully processed %d player faces (skipped %d existing, %d length-mismatched, %d source-not-found, %d errors)",
-		processed, skipped, lengthMismatched, missingSrc, errors)
+	log.Printf("Successfully processed %d player faces (%d relinked, %d skipped existing, %d source-not-found, %d errors)",
+		processed, relinked, skipped, missingSrc, errors)
 }
 
 type processResult int
 
 const (
 	resultProcessed processResult = iota
+	resultRelinked
 	resultSkippedExisting
 	resultMissingSrc
 	resultError
@@ -167,12 +164,20 @@ func processOne(srcFolder, destFolder string, item PlayerMapping, skipExisting b
 		return resultError
 	}
 
-	fpkPath := filepath.Join(destPath, "#Win", "face.fpk")
-	if err := hexReplace(fpkPath, item.SrcPlayerID, item.DestPlayerID); err != nil {
-		log.Printf("Error hex-replacing %s: %v", fpkPath, err)
+	if len(item.SrcPlayerID) == len(item.DestPlayerID) {
+		fpkPath := filepath.Join(destPath, "#Win", "face.fpk")
+		if err := hexReplace(fpkPath, item.SrcPlayerID, item.DestPlayerID); err != nil {
+			log.Printf("Error hex-replacing %s: %v", fpkPath, err)
+			return resultError
+		}
+		return resultProcessed
+	}
+	// Different-length IDs need an FPK repack, not an in-place byte swap.
+	if err := relinkFaceFolder(destPath, item.DestPlayerID); err != nil {
+		log.Printf("Error relinking %s: %v", destPath, err)
 		return resultError
 	}
-	return resultProcessed
+	return resultRelinked
 }
 
 // hexReplace rewrites every literal occurrence of oldID with newID inside the
