@@ -50,11 +50,10 @@ func assertRelink(t *testing.T, raw []byte, old, newID string) {
 	if !bytes.Contains(out, []byte("real/"+newID+"/")) {
 		t.Errorf("%s: new id path absent", newID)
 	}
-	switch {
-	case len(newID) == len(old) && len(out) != len(raw):
+	// Equal-length relink must preserve total size. (A longer ID need not grow
+	// the file: 16-byte end alignment can absorb a small delta.)
+	if len(newID) == len(old) && len(out) != len(raw) {
 		t.Errorf("%s: equal-length relink changed size %d -> %d", newID, len(raw), len(out))
-	case len(newID) > len(old) && len(out) <= len(raw):
-		t.Errorf("%s: longer id did not grow file (%d -> %d)", newID, len(raw), len(out))
 	}
 }
 
@@ -71,6 +70,15 @@ func TestRelinkSynthetic(t *testing.T) {
 	}
 	assertRelink(t, raw, old, "2147483648") // length-changing
 	assertRelink(t, raw, old, "99999")      // equal-length
+
+	// The bare ID outside the texture path must not be rewritten.
+	out, err := relinkFpkBytes(raw, old, "2147483648")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(out, []byte("mesh21665bytes")) {
+		t.Error("anchored relink corrupted an incidental bare-id byte run")
+	}
 }
 
 // TestRelinkRoundTrip runs the same checks against the real fixture when present.
@@ -97,7 +105,9 @@ func buildSyntheticFpk(t *testing.T) []byte {
 	}
 	ents := []ent{
 		{"a.bin", []byte("BINDATA\x00padding-no-id")},
-		{"b.fmdl", append([]byte("FMDL\x00\x00\x00\x00mesh-bytes\x00"),
+		// "mesh21665bytes" carries the bare ID outside the path; an anchored
+		// relink must leave it untouched.
+		{"b.fmdl", append([]byte("FMDL\x00\x00\x00\x00mesh21665bytes\x00"),
 			[]byte("/Assets/pes16/model/character/face/real/21665/sourceimages/face_bsm.dds\x00tail\x00")...)},
 	}
 

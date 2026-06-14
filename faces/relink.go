@@ -48,7 +48,10 @@ func relinkFpkBytes(raw []byte, oldID, newID string) ([]byte, error) {
 		return nil, fmt.Errorf("foxfpk has no entries")
 	}
 
-	old, nw := []byte(oldID), []byte(newID)
+	// Anchor on the path so a short numeric ID can't rewrite incidental byte
+	// runs (vertex data, other strings) that happen to match the bare digits.
+	old := []byte("face/real/" + oldID + "/")
+	nw := []byte("face/real/" + newID + "/")
 	newData := make([][]byte, len(f.entries))
 	changed := false
 	for i, e := range f.entries {

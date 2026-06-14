@@ -198,10 +198,12 @@ func hexReplace(filePath, oldID, newID string) error {
 	if err != nil {
 		return err
 	}
-	if !bytes.Contains(data, []byte(oldID)) {
+	// Anchor on the path so a short numeric ID can't rewrite incidental byte runs.
+	old := []byte("face/real/" + oldID + "/")
+	if !bytes.Contains(data, old) {
 		return nil
 	}
-	data = bytes.ReplaceAll(data, []byte(oldID), []byte(newID))
+	data = bytes.ReplaceAll(data, old, []byte("face/real/"+newID+"/"))
 	return os.WriteFile(filePath, data, 0o644)
 }
 
