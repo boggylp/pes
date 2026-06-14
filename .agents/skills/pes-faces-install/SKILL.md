@@ -15,15 +15,13 @@ Faces are the easiest mod to install wrong: silent drops on length mismatch, eas
 
 ## Steps
 
-1. **Convert the live player DB to the tool's CSV format.** Set `FL26` to the live install root first (`FL26=...`); it varies per machine and the user-given path wins, so never hardcode it. The live file is `<ID> - <Name>` with CRLF; the tool expects semicolon CSV with header `Id;Name`:
+1. **Build the destination CSV from the AUTHORITATIVE live roster, not `FL26_players.txt`.** Set `FL26` to the live install root first (`FL26=...`); never hardcode it. Critical: when UML (or any DB patch) is installed it replaces `Player.bin` via livecpk and **renumbers some players**, so `FL26_players.txt` (base export, often stale by months) yields wrong IDs and faces silently miss or clobber the wrong player. Pick the roster in this order:
 
-    ```sh
-    tr -d '\r' < "$FL26/FL26_players.txt" \
-      | sed '1iId;Name' \
-      | sed 's/ - /;/' > /tmp/fl26-players.csv
-    ```
+    - **Provided ID list in the install** (check first): `UML 2026 - Player IDs.csv` (`Id;Name;...;Club`) and `... - Team IDs.csv` at the game root.
+    - **The live `UML_Database` `Player.bin`** (full names + live IDs), via `pesdb roster --player-bin "$FL26/SiderAddons/livecpk/UML_Database/common/etc/pesdb/Player.bin" --out /tmp/uml-roster.csv`.
+    - Only if no DB patch is installed: `FL26_players.txt` (`tr -d '\r' < "$FL26/FL26_players.txt" | sed '1iId;Name' | sed 's/ - /;/'`).
 
-    Run this fresh every install; the live file is the authoritative source, not the snapshot in `faces/samples/`.
+    Sanity-check a known renumbered player (Beljo: base `91287` vs UML `58035`) before trusting the roster. Run fresh every install; never use the `faces/samples/` snapshots.
 
 2. **Detect first** when auditing or after any install:
 
