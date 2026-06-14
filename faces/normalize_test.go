@@ -55,6 +55,24 @@ func TestGetBestMatch(t *testing.T) {
 	}
 }
 
+func TestGetBestMatchRelaxed(t *testing.T) {
+	// Unique relaxed match succeeds.
+	uniq := map[string]struct{}{"dion drena beljo": {}, "luka modric": {}}
+	if got, ok := getBestMatch("Dion Beljo", uniq); !ok || got != "dion drena beljo" {
+		t.Errorf("relaxed unique = (%q,%v), want (dion drena beljo,true)", got, ok)
+	}
+	// Ambiguous relaxed match (two players share first+last) is rejected.
+	ambig := map[string]struct{}{"dion drena beljo": {}, "dion mario beljo": {}}
+	if got, ok := getBestMatch("Dion Beljo", ambig); ok {
+		t.Errorf("relaxed ambiguous = (%q,true), want rejected", got)
+	}
+	// Exact match still wins over a relaxed candidate.
+	mixed := map[string]struct{}{"dion beljo": {}, "dion drena beljo": {}}
+	if got, ok := getBestMatch("Dion Beljo", mixed); !ok || got != "dion beljo" {
+		t.Errorf("exact-over-relaxed = (%q,%v), want (dion beljo,true)", got, ok)
+	}
+}
+
 func TestCalculateNameMatchScore(t *testing.T) {
 	tests := []struct {
 		target    string
@@ -70,6 +88,12 @@ func TestCalculateNameMatchScore(t *testing.T) {
 		// Non-exact matches
 		{"r ronaldo", "roberto ronaldo", 51, true},
 		{"cristiano ronaldo", "cristian ronaldo", 0, false},
+		// Relaxed differing-part-count: middle name ignored, surname exact
+		{"dion beljo", "dion drena beljo", scoreRelaxed, true},
+		{"timi elsnik", "timi max elsnik", scoreRelaxed, true},
+		// Differing part count but incompatible first name or surname: no match
+		{"marko beljo", "dion drena beljo", 0, false},
+		{"dion beljo", "dion drena vida", 0, false},
 	}
 
 	for _, tt := range tests {

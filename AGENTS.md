@@ -33,8 +33,12 @@ Gotchas beyond README:
 
 - Player base `common/etc/pesdb/Player.bin` in `Data/dt00_x64.cpk`; `dt10_x64.cpk` + `download/dt80_*E_x64.cpk` override by load order. Not encrypted: `\xff\x10\x81WESYS` + zlib. BPB ships a real Player.bin (1,751,422 B, md5 `89938c15`) in dt00=dt10; EDIT save adds 20 BPB customs.
 - pesdb stride 312 B. Player.bin: Id `+0x08`, name `+0x44`, shirt `+0x81`. EDIT `data.dat`: Id `+0x0C`, name `+0x42`, shirt `+0x7F`, records from offset 112.
-- `faces map` silently drops length-mismatched ID pairs (`map.go:81`; `ReplaceAll` would corrupt FPK offsets). Salvage: direct-ID copy as-is, or rename source folder to match live name's part count (`normalize.go:82`). Write a rollback record on install.
-- Live FL26 DBs at game root (`FL26_players.txt`, `FL26_teams.txt`), not `faces/samples/`. Convert: `tr -d '\r' < FL26_players.txt | sed '1iId;Name' | sed 's/ - /;/'`.
+- **Authoritative roster = the live DB, not `FL26_players.txt`.** UML (or any DB patch) replaces `Player.bin` via livecpk (`SiderAddons\livecpk\UML_Database\...\Player.bin`) and renumbers players (Beljo base `91287` vs UML `58035`), so the stale base export keys faces to wrong/dead IDs. Before face/ID work: use the install's provided list (`UML 2026 - Player IDs.csv`, `... - Team IDs.csv`) or extract the live `UML_Database` `Player.bin` with `pesdb`; verify Beljo's ID.
+- Nationality byte = `+0x1D` (BPB `Player.bin`; UML team `Country` uses a different scheme). Balkan: Croatia 144, Serbia 94, Bosnia 140, Montenegro 97 (132 = Austria), N.Macedonia 186, Slovenia 214, Albania 126, Kosovo 110.
+- Faces bind by folder ID **and** the ID embedded in `face.fpk`; both must match or it renders default (created players included: folder copy alone is not enough). Equal-length IDs: `faces map` byte-replaces the decimal ID in place. Length-changing IDs (created-player `0x80000000`+ = 10 digits) need an FPK/FMDL repack; an in-place replace corrupts offsets. Own relinker planned (public-source-based); until then use an external relinker.
+- `faces map` matches exact normalized name, then a relaxed first+last fallback (surname exact + compatible first name, middle names ignored, collisions rejected), so BPB `Dion Drena Beljo` maps to live `Dion Beljo`.
+- `faces/samples/` CSVs lag the install; never use them for an install.
+- Mark every custom `sider.ini` edit with a `; [GB-CUSTOM] not from UML/patch: <what>, <date> <host>` line above it.
 
 ## Domain language
 
