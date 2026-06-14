@@ -17,6 +17,8 @@ func main() {
 		cmdDetect(os.Args[2:])
 	case "map":
 		cmdMap(os.Args[2:])
+	case "relink":
+		cmdRelink(os.Args[2:])
 	default:
 		printUsage()
 		os.Exit(1)
@@ -28,7 +30,27 @@ func printUsage() {
 
 commands:
   detect [flags]  detect mismatched player faces in livecpk folder
-  map    [flags]  map player faces between game versions`)
+  map    [flags]  map player faces between game versions
+  relink [flags]  rewrite a face folder's embedded ID to a new ID (length-changing)`)
+}
+
+func cmdRelink(args []string) {
+	fs := flag.NewFlagSet("relink", flag.ExitOnError)
+	folder := fs.String("folder", "", "face folder containing #Win/face.fpk (required)")
+	newID := fs.String("id", "", "new player ID to embed (required)")
+	if err := fs.Parse(args); err != nil {
+		os.Exit(1)
+	}
+	if *folder == "" || *newID == "" {
+		fmt.Fprintln(os.Stderr, "usage: faces relink --folder <faceDir> --id <newID>")
+		fs.PrintDefaults()
+		os.Exit(1)
+	}
+	if err := relinkFaceFolder(*folder, *newID); err != nil {
+		fmt.Fprintf(os.Stderr, "relink failed: %v\n", err)
+		os.Exit(1)
+	}
+	fmt.Printf("relinked %s -> id %s\n", *folder, *newID)
 }
 
 func cmdDetect(args []string) {

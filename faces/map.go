@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"io"
 	"log"
 	"os"
@@ -79,7 +80,7 @@ func getPlayerMapping(sourceData, destData []Player) []PlayerMapping {
 func updateFacesStructure(srcFolder, destFolder string, mapping []PlayerMapping, skipExisting bool) {
 	log.Printf("Updating faces structure from %s to %s", srcFolder, destFolder)
 
-	var processed, skipped, lengthMismatched, missingSrc, errors int64
+	var processed, relinked, skipped, missingSrc, failed int64
 
 	// Buffered channel as a work queue; workers consume items in parallel.
 	// Disk I/O dominates each iteration, so 2× CPU is a reasonable default.
@@ -98,37 +99,34 @@ func updateFacesStructure(srcFolder, destFolder string, mapping []PlayerMapping,
 				switch processOne(srcFolder, destFolder, item, skipExisting) {
 				case resultProcessed:
 					atomic.AddInt64(&processed, 1)
+				case resultRelinked:
+					atomic.AddInt64(&relinked, 1)
 				case resultSkippedExisting:
 					atomic.AddInt64(&skipped, 1)
 				case resultMissingSrc:
 					atomic.AddInt64(&missingSrc, 1)
 				case resultError:
-					atomic.AddInt64(&errors, 1)
+					atomic.AddInt64(&failed, 1)
 				}
 			}
 		}()
 	}
 
 	for _, item := range mapping {
-		// ID length must match for hex replacement to work; checked on the
-		// dispatcher side so length-mismatch counting stays single-threaded.
-		if len(item.SrcPlayerID) != len(item.DestPlayerID) {
-			lengthMismatched++
-			continue
-		}
 		ch <- item
 	}
 	close(ch)
 	wg.Wait()
 
-	log.Printf("Successfully processed %d player faces (skipped %d existing, %d length-mismatched, %d source-not-found, %d errors)",
-		processed, skipped, lengthMismatched, missingSrc, errors)
+	log.Printf("Installed %d faces (%d direct, %d relinked); skipped %d existing, %d source-not-found, %d errors",
+		processed+relinked, processed, relinked, skipped, missingSrc, failed)
 }
 
 type processResult int
 
 const (
 	resultProcessed processResult = iota
+	resultRelinked
 	resultSkippedExisting
 	resultMissingSrc
 	resultError
@@ -167,12 +165,24 @@ func processOne(srcFolder, destFolder string, item PlayerMapping, skipExisting b
 		return resultError
 	}
 
-	fpkPath := filepath.Join(destPath, "#Win", "face.fpk")
-	if err := hexReplace(fpkPath, item.SrcPlayerID, item.DestPlayerID); err != nil {
-		log.Printf("Error hex-replacing %s: %v", fpkPath, err)
+	if len(item.SrcPlayerID) == len(item.DestPlayerID) {
+		fpkPath := filepath.Join(destPath, "#Win", "face.fpk")
+		if err := hexReplace(fpkPath, item.SrcPlayerID, item.DestPlayerID); err != nil {
+			log.Printf("Error hex-replacing %s: %v", fpkPath, err)
+			return resultError
+		}
+		return resultProcessed
+	}
+	// Different-length IDs need an FPK repack, not an in-place byte swap.
+	switch err := relinkFaceFolder(destPath, item.DestPlayerID); {
+	case err == nil:
+		return resultRelinked
+	case errors.Is(err, errNoFpk), errors.Is(err, errNoEmbeddedID):
+		return resultProcessed // copied; no embedded id to rewrite
+	default:
+		log.Printf("Error relinking %s: %v", destPath, err)
 		return resultError
 	}
-	return resultProcessed
 }
 
 // hexReplace rewrites every literal occurrence of oldID with newID inside the
@@ -188,10 +198,12 @@ func hexReplace(filePath, oldID, newID string) error {
 	if err != nil {
 		return err
 	}
-	if !bytes.Contains(data, []byte(oldID)) {
+	// Anchor on the path so a short numeric ID can't rewrite incidental byte runs.
+	old := []byte("face/real/" + oldID + "/")
+	if !bytes.Contains(data, old) {
 		return nil
 	}
-	data = bytes.ReplaceAll(data, []byte(oldID), []byte(newID))
+	data = bytes.ReplaceAll(data, old, []byte("face/real/"+newID+"/"))
 	return os.WriteFile(filePath, data, 0o644)
 }
 

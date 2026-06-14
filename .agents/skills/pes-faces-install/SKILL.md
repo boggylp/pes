@@ -1,6 +1,6 @@
 ---
 name: pes-faces-install
-description: '**Invoke this skill BEFORE installing, mapping, or detecting player faces for the live Football Life 2026 install.** Covers the `faces/` Go tool (`detect` for orphan / ID-mismatch scans, `map` for cross-version remapping), deriving the destination roster from the AUTHORITATIVE live DB (the install''s `UML 2026 - Player IDs.csv` or the livecpk `UML_Database` `Player.bin`, never the stale base `FL26_players.txt` which UML renumbers), the destination `SiderAddons\livecpk\...\face\real\<player_id>\`, the exact-then-relaxed name matcher, length-mismatch handling (external relink; own tool planned), the FPK-embedded-ID-must-match rule (incl. created players), and the mandatory rollback record. Triggers: "install these faces", "map BPB faces to FL26", "remap player IDs", "find orphan faces", "fix face mismatches".'
+description: '**Invoke this skill BEFORE installing, mapping, or detecting player faces for the live Football Life 2026 install.** Covers the `faces/` Go tool (`detect` for orphan / ID-mismatch scans, `map` for cross-version remapping, `relink` for length-changing FPK repacks), deriving the destination roster from the AUTHORITATIVE live DB (the install''s `UML 2026 - Player IDs.csv` or the livecpk `UML_Database` `Player.bin`, never the stale base `FL26_players.txt` which UML renumbers), the destination `SiderAddons\livecpk\...\face\real\<player_id>\`, the exact-then-relaxed name matcher, length-mismatch handling via `relink` (FPK repack), the FPK-embedded-ID-must-match rule (incl. created players), and the mandatory rollback record. Triggers: "install these faces", "map BPB faces to FL26", "remap player IDs", "find orphan faces", "fix face mismatches".'
 ---
 
 # PES face install
@@ -47,7 +47,7 @@ Faces are the easiest mod to install wrong: silent drops on length mismatch, eas
 
     Matches by normalized name; copies the face folder, renames it to the destination ID, and rewrites the embedded ID inside `face.fpk` via `strings.ReplaceAll`.
 
-4. **Handle length mismatches.** `map` installs equal-length ID pairs by replacing the decimal ID in place; different-length pairs (e.g. `72284` -> `177929`, or a created-player 10-digit ID like `2147483648`) are only counted in its summary (not listed) and skipped, since an in-place replace corrupts the FPK/FMDL offsets, so they need an FPK repack. Own relinker is planned (public-source-based); until then relink those with an external tool (e.g. caocacao PES 2021 Face Relinker), then drop the folder in.
+4. **Handle length mismatches.** `map` installs equal-length ID pairs by replacing the decimal ID in place, and routes different-length pairs (e.g. `72284` -> `177929`, or a created-player 10-digit ID like `2147483648`) through `faces relink`, which repacks the foxfpk (an in-place byte swap would corrupt offsets). Standalone for a single folder: `faces relink --folder <faceDir> --id <newID>` (old ID auto-detected). The map summary reports the relinked count. Verify relinked faces in-game (the repack is structurally tested, not render-verified).
 
 5. **Salvage near-misses** the matcher can't catch:
 
@@ -77,4 +77,4 @@ Faces are the easiest mod to install wrong: silent drops on length mismatch, eas
 
 - Roster / player ID extraction from cpk + Player.bin: see pes-roster-extract.
 - Kit textures: see pes-kit-ftex.
-- Length-changing FPK/FMDL repack: handled by an external relinker for now (own Go relinker planned).
+- Length-changing FPK repack internals (foxfpk parse + offset recompute): see `faces/relink.go` and `faces/fpk.go`.
