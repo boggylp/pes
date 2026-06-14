@@ -16,6 +16,13 @@ import (
 // paths, e.g. ".../face/real/21665/sourceimages/".
 var embeddedIDPattern = regexp.MustCompile(`face/real/(\d+)/`)
 
+// Sentinel results from relinkFaceFolder: a standalone `relink` treats these as
+// failures; the map path tolerates them (the face copied, nothing to rewrite).
+var (
+	errNoFpk        = errors.New("no #Win/face.fpk in face folder")
+	errNoEmbeddedID = errors.New("no embedded face/real/<id> path in face.fpk")
+)
+
 // findEmbeddedID returns the player ID currently embedded in a face.fpk's
 // packed data, or an error if none is present.
 func findEmbeddedID(raw []byte) (string, error) {
@@ -66,8 +73,9 @@ func relinkFpkBytes(raw []byte, oldID, newID string) ([]byte, error) {
 			firstOff = e.dataOffset
 		}
 	}
-	if int(firstOff) > len(raw) {
-		return nil, fmt.Errorf("first data offset past EOF")
+	entTableEnd := fpkHeaderSize + len(f.entries)*fpkEntrySize
+	if int(firstOff) < entTableEnd || int(firstOff) > len(raw) {
+		return nil, fmt.Errorf("first data offset 0x%X overlaps entry table or past EOF", firstOff)
 	}
 	out := make([]byte, firstOff)
 	copy(out, raw[:firstOff])
@@ -105,14 +113,17 @@ func relinkFaceFolder(folder, newID string) error {
 	fpkPath := filepath.Join(folder, "#Win", "face.fpk")
 	raw, err := os.ReadFile(fpkPath)
 	if errors.Is(err, fs.ErrNotExist) {
-		return nil // textures-only face, nothing to relink
+		return errNoFpk
 	}
 	if err != nil {
 		return err
 	}
 	oldID, err := findEmbeddedID(raw)
-	if err != nil || oldID == newID {
-		return nil // no embedded path, or already correct
+	if err != nil {
+		return errNoEmbeddedID
+	}
+	if oldID == newID {
+		return nil // already correct
 	}
 	out, err := relinkFpkBytes(raw, oldID, newID)
 	if err != nil {

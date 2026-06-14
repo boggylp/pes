@@ -53,7 +53,10 @@ func parseFpk(b []byte) (*fpkFile, error) {
 		copy(e.md5[:], b[off+16:off+32])
 		e.dataOffset = binary.LittleEndian.Uint64(b[off+32:])
 		e.dataSize = binary.LittleEndian.Uint64(b[off+40:])
-		if e.nameOffset+e.nameSize <= uint64(len(b)) {
+		if e.dataOffset+e.dataSize > uint64(len(b)) || e.dataOffset+e.dataSize < e.dataOffset {
+			return nil, fmt.Errorf("entry %d data [%d,+%d) out of range (file %d)", i, e.dataOffset, e.dataSize, len(b))
+		}
+		if e.nameOffset+e.nameSize <= uint64(len(b)) && e.nameOffset+e.nameSize >= e.nameOffset {
 			e.name = string(b[e.nameOffset : e.nameOffset+e.nameSize])
 		}
 		f.entries = append(f.entries, e)

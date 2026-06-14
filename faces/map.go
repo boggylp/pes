@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"io"
 	"log"
 	"os"
@@ -79,7 +80,7 @@ func getPlayerMapping(sourceData, destData []Player) []PlayerMapping {
 func updateFacesStructure(srcFolder, destFolder string, mapping []PlayerMapping, skipExisting bool) {
 	log.Printf("Updating faces structure from %s to %s", srcFolder, destFolder)
 
-	var processed, relinked, skipped, missingSrc, errors int64
+	var processed, relinked, skipped, missingSrc, failed int64
 
 	// Buffered channel as a work queue; workers consume items in parallel.
 	// Disk I/O dominates each iteration, so 2× CPU is a reasonable default.
@@ -105,7 +106,7 @@ func updateFacesStructure(srcFolder, destFolder string, mapping []PlayerMapping,
 				case resultMissingSrc:
 					atomic.AddInt64(&missingSrc, 1)
 				case resultError:
-					atomic.AddInt64(&errors, 1)
+					atomic.AddInt64(&failed, 1)
 				}
 			}
 		}()
@@ -117,8 +118,8 @@ func updateFacesStructure(srcFolder, destFolder string, mapping []PlayerMapping,
 	close(ch)
 	wg.Wait()
 
-	log.Printf("Successfully processed %d player faces (%d relinked, %d skipped existing, %d source-not-found, %d errors)",
-		processed, relinked, skipped, missingSrc, errors)
+	log.Printf("Installed %d faces (%d direct, %d relinked); skipped %d existing, %d source-not-found, %d errors",
+		processed+relinked, processed, relinked, skipped, missingSrc, failed)
 }
 
 type processResult int
@@ -173,11 +174,15 @@ func processOne(srcFolder, destFolder string, item PlayerMapping, skipExisting b
 		return resultProcessed
 	}
 	// Different-length IDs need an FPK repack, not an in-place byte swap.
-	if err := relinkFaceFolder(destPath, item.DestPlayerID); err != nil {
+	switch err := relinkFaceFolder(destPath, item.DestPlayerID); {
+	case err == nil:
+		return resultRelinked
+	case errors.Is(err, errNoFpk), errors.Is(err, errNoEmbeddedID):
+		return resultProcessed // copied; no embedded id to rewrite
+	default:
 		log.Printf("Error relinking %s: %v", destPath, err)
 		return resultError
 	}
-	return resultRelinked
 }
 
 // hexReplace rewrites every literal occurrence of oldID with newID inside the
