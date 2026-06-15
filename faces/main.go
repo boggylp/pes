@@ -36,7 +36,7 @@ commands:
 
 func cmdRelink(args []string) {
 	fs := flag.NewFlagSet("relink", flag.ExitOnError)
-	folder := fs.String("folder", "", "face folder containing #Win/face.fpk (required)")
+	folder := fs.String("folder", "", "face folder containing #Win/*.fpk|*.fpkd packages (required)")
 	newID := fs.String("id", "", "new player ID to embed (required)")
 	if err := fs.Parse(args); err != nil {
 		os.Exit(1)

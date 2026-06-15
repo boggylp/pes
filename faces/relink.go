@@ -5,7 +5,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -19,9 +18,27 @@ var embeddedIDPattern = regexp.MustCompile(`face/real/(\d+)/`)
 // Sentinel results from relinkFaceFolder: a standalone `relink` treats these as
 // failures; the map path tolerates them (the face copied, nothing to rewrite).
 var (
-	errNoFpk        = errors.New("no #Win/face.fpk in face folder")
-	errNoEmbeddedID = errors.New("no embedded face/real/<id> path in face.fpk")
+	errNoFpk        = errors.New("no face package (#Win/*.fpk|*.fpkd) in face folder")
+	errNoEmbeddedID = errors.New("no embedded face/real/<id> path in any face package")
 )
+
+// winPackages returns the #Win/*.fpk and #Win/*.fpkd files in a face folder, in
+// deterministic order. The player ID lives in face.fpk; the companion face.fpkd
+// is usually an ID-less dependency stub, but separate packages can also embed
+// the path, so every package is processed rather than only face.fpk.
+func winPackages(folder string) ([]string, error) {
+	winDir := filepath.Join(folder, "#Win")
+	var pkgs []string
+	for _, ext := range []string{"*.fpk", "*.fpkd"} {
+		m, err := filepath.Glob(filepath.Join(winDir, ext))
+		if err != nil {
+			return nil, err
+		}
+		pkgs = append(pkgs, m...)
+	}
+	sort.Strings(pkgs)
+	return pkgs, nil
+}
 
 // findEmbeddedID returns the player ID currently embedded in a face.fpk's
 // packed data, or an error if none is present.
@@ -110,27 +127,79 @@ func relinkFpkBytes(raw []byte, oldID, newID string) ([]byte, error) {
 	return out, nil
 }
 
-// relinkFaceFolder relinks the face.fpk inside a face folder's #Win directory to
-// newID. oldID is auto-detected. Equal-length IDs are handled by the same path.
-func relinkFaceFolder(folder, newID string) error {
-	fpkPath := filepath.Join(folder, "#Win", "face.fpk")
-	raw, err := os.ReadFile(fpkPath)
-	if errors.Is(err, fs.ErrNotExist) {
-		return errNoFpk
-	}
-	if err != nil {
-		return err
-	}
-	oldID, err := findEmbeddedID(raw)
-	if err != nil {
-		return errNoEmbeddedID
-	}
+// rewriteFaceFolderID rewrites the embedded face/real/<oldID>/ path to newID in
+// every #Win face package that contains it. Equal-length IDs use an in-place
+// byte replace, which is format-agnostic and size-preserving (safe for foxfpk
+// and foxfpkd alike). A length change needs the foxfpk repacker; a length change
+// in a foxfpkd is refused rather than risk corrupting an unverified layout.
+func rewriteFaceFolderID(folder, oldID, newID string) error {
 	if oldID == newID {
 		return nil // already correct
 	}
-	out, err := relinkFpkBytes(raw, oldID, newID)
+	pkgs, err := winPackages(folder)
 	if err != nil {
-		return fmt.Errorf("%s: %w", fpkPath, err)
+		return err
 	}
-	return os.WriteFile(fpkPath, out, 0o644)
+	if len(pkgs) == 0 {
+		return errNoFpk
+	}
+	old := []byte("face/real/" + oldID + "/")
+	nw := []byte("face/real/" + newID + "/")
+	rewrote := false
+	for _, p := range pkgs {
+		raw, err := os.ReadFile(p)
+		if err != nil {
+			return err
+		}
+		if !bytes.Contains(raw, old) {
+			continue // ID-less stub or unrelated package
+		}
+		var out []byte
+		switch {
+		case len(oldID) == len(newID):
+			out = bytes.ReplaceAll(raw, old, nw)
+		case isFoxFpk(raw):
+			if out, err = relinkFpkBytes(raw, oldID, newID); err != nil {
+				return fmt.Errorf("%s: %w", p, err)
+			}
+		default:
+			return fmt.Errorf("%s: length-changing relink of a %s package is unsupported", p, containerKind(raw))
+		}
+		if err := os.WriteFile(p, out, 0o644); err != nil {
+			return err
+		}
+		rewrote = true
+	}
+	if !rewrote {
+		return errNoEmbeddedID
+	}
+	return nil
+}
+
+// relinkFaceFolder auto-detects the current embedded ID from a face folder's
+// #Win packages and rewrites every package to newID. Used by the standalone
+// `relink` command, where only the new ID is known.
+func relinkFaceFolder(folder, newID string) error {
+	pkgs, err := winPackages(folder)
+	if err != nil {
+		return err
+	}
+	if len(pkgs) == 0 {
+		return errNoFpk
+	}
+	oldID := ""
+	for _, p := range pkgs {
+		raw, err := os.ReadFile(p)
+		if err != nil {
+			return err
+		}
+		if id, derr := findEmbeddedID(raw); derr == nil {
+			oldID = id
+			break
+		}
+	}
+	if oldID == "" {
+		return errNoEmbeddedID
+	}
+	return rewriteFaceFolderID(folder, oldID, newID)
 }

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"errors"
 	"io"
 	"log"
@@ -165,17 +164,13 @@ func processOne(srcFolder, destFolder string, item PlayerMapping, skipExisting b
 		return resultError
 	}
 
-	if len(item.SrcPlayerID) == len(item.DestPlayerID) {
-		fpkPath := filepath.Join(destPath, "#Win", "face.fpk")
-		if err := hexReplace(fpkPath, item.SrcPlayerID, item.DestPlayerID); err != nil {
-			log.Printf("Error hex-replacing %s: %v", fpkPath, err)
-			return resultError
-		}
-		return resultProcessed
-	}
-	// Different-length IDs need an FPK repack, not an in-place byte swap.
-	switch err := relinkFaceFolder(destPath, item.DestPlayerID); {
+	// Rewrite the embedded ID in every #Win package that carries it. Equal-length
+	// IDs are an in-place byte swap; different lengths trigger an FPK repack.
+	switch err := rewriteFaceFolderID(destPath, item.SrcPlayerID, item.DestPlayerID); {
 	case err == nil:
+		if len(item.SrcPlayerID) == len(item.DestPlayerID) {
+			return resultProcessed
+		}
 		return resultRelinked
 	case errors.Is(err, errNoFpk), errors.Is(err, errNoEmbeddedID):
 		return resultProcessed // copied; no embedded id to rewrite
@@ -183,28 +178,6 @@ func processOne(srcFolder, destFolder string, item PlayerMapping, skipExisting b
 		log.Printf("Error relinking %s: %v", destPath, err)
 		return resultError
 	}
-}
-
-// hexReplace rewrites every literal occurrence of oldID with newID inside the
-// file at filePath. The two IDs must have equal byte length (the caller is
-// responsible) so the file size stays the same and the FPK's length-prefixed
-// path table is not corrupted.
-func hexReplace(filePath, oldID, newID string) error {
-	if _, err := os.Stat(filePath); os.IsNotExist(err) {
-		// Some source folders ship without a face.fpk (textures only); skip silently.
-		return nil
-	}
-	data, err := os.ReadFile(filePath)
-	if err != nil {
-		return err
-	}
-	// Anchor on the path so a short numeric ID can't rewrite incidental byte runs.
-	old := []byte("face/real/" + oldID + "/")
-	if !bytes.Contains(data, old) {
-		return nil
-	}
-	data = bytes.ReplaceAll(data, old, []byte("face/real/"+newID+"/"))
-	return os.WriteFile(filePath, data, 0o644)
 }
 
 // copyDir mirrors src into dst recursively. Files are streamed via io.Copy so

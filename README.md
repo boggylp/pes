@@ -145,7 +145,12 @@ go run . map \
   --destination-csv samples/FL26_players.csv \
   --source-folder /path/to/source/faces \
   --dest-folder /path/to/destination/faces
+
+# Relink a single face folder's embedded ID (length-changing; FPK repack)
+go run . relink --folder /path/to/face/real/100219 --id 2147483648
 ```
+
+`map` and `relink` rewrite the embedded `face/real/<id>/` path in every `#Win/*.fpk` and `*.fpkd` package in a face folder. The FL26 `face.fpkd` is an ID-less dependency stub (copied intact, nothing to rewrite); a separate package that embeds the path is also handled.
 
 ## pesdb
 

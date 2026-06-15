@@ -14,7 +14,29 @@ const (
 	fpkAlign      = 16
 )
 
-var fpkMagic = []byte("foxfpk")
+var (
+	fpkMagic  = []byte("foxfpk")
+	fpkdMagic = []byte("foxfpkd")
+)
+
+// isFoxFpkd reports whether b is a foxfpkd dependency package. "foxfpk" is a
+// prefix of "foxfpkd", so this must be checked before treating b as a foxfpk.
+func isFoxFpkd(b []byte) bool { return bytes.HasPrefix(b, fpkdMagic) }
+
+// isFoxFpk reports whether b is a foxfpk packed archive (and not a foxfpkd).
+func isFoxFpk(b []byte) bool { return bytes.HasPrefix(b, fpkMagic) && !isFoxFpkd(b) }
+
+// containerKind names the package format for diagnostics.
+func containerKind(b []byte) string {
+	switch {
+	case isFoxFpkd(b):
+		return "foxfpkd"
+	case isFoxFpk(b):
+		return "foxfpk"
+	default:
+		return "unknown"
+	}
+}
 
 type fpkEntry struct {
 	nameOffset uint64
@@ -32,7 +54,7 @@ type fpkFile struct {
 }
 
 func parseFpk(b []byte) (*fpkFile, error) {
-	if len(b) < fpkHeaderSize || !bytes.HasPrefix(b, fpkMagic) {
+	if len(b) < fpkHeaderSize || !isFoxFpk(b) {
 		return nil, fmt.Errorf("not a foxfpk archive")
 	}
 	// PES 64-bit foxfpk: version at 0x0C, packed-file count at 0x20, reference
