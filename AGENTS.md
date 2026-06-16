@@ -19,7 +19,7 @@
 - No gameplay/config change to a live install without explicit user approval of the change step.
 - Before any switch, inventory the full stack (dt13, dt18, gameplay livecpk roots, gameplay `lua.module` entries, exe, hooks, cache); verify each from evidence or mod instructions. A file named like an animation/visual addon counts as gameplay if a mod readme bundles it.
 - No partial switch leaving a mixed state unless the user asked for that exact mix.
-- **`SYSTEM00000000` deletion: user approval required, never autonomous.** Propose when its mismatch likely causes a real problem (dt13/dt18/exe switch, or EDIT-save replacement prompting "create edit data"); ask first; never bundle silently. Cost: also wipes settings cache + recent-match state.
+- **`SYSTEM00000000` deletion: never propose, mention, or perform it.** The user has no automated way to reapply graphics/system settings, so a delete loses them and is net-negative. Suppressed until an automated clear-cache + reapply-all-settings tool exists; only then revisit. Never delete autonomously regardless. Cost if ever done: wipes settings cache + recent-match state.
 - `tools/fl-gameplay.ps1` for recurring status checks and vanilla dt13/dt18 switches.
 - Query `evoweb/data/` JSON with `duckdb`.
 - Elevation: spawn elevated `pwsh` from the session, don't stop. `Start-Process (Get-Command pwsh.exe).Source -Verb RunAs -Wait -ArgumentList @('-NoProfile','-ExecutionPolicy','Bypass','-File',<script>)`.
@@ -75,7 +75,7 @@ Gotchas beyond README:
 | **EXE mod** | A modded `FL_2026.exe` / `PES2021.exe` carrying hardcoded gameplay changes, ranging from a multi-MB fork to a few-byte binary patch. | exe patch, modded exe | Identify by hash, never by label. A label can be wrong (SHA256 `9EE0C306` is vanilla FL26 26.2.0.3, not the "Holland WE2026" it was filed as; real Holland = `19740A3C`, vanilla +17 bytes). |
 | **Gameplay stack** | The full set of files, livecpk roots, Sider modules, executable replacements, hooks, and caches affecting gameplay. | gameplay mod, gameplay files | Inventory the whole stack before switching. |
 | **Live install** | The actual PES or Football Life installation currently used for play and verification. | game folder, install path | The user-provided path wins over search. |
-| **SYSTEM cache** | The PES save cache that can preserve gameplay or settings state across file switches, and which holds a fingerprint of the EDIT save. A stale fingerprint after replacing EDIT00000000 triggers a "create edit data" prompt that wipes the new save. | system file, cache | Removal is destructive (loses settings cache, recent-match state); always ask the user before deleting. |
+| **SYSTEM cache** | The PES save cache that can preserve gameplay or settings state across file switches, and which holds a fingerprint of the EDIT save. A stale fingerprint after replacing EDIT00000000 triggers a "create edit data" prompt that wipes the new save. | system file, cache | Removal is destructive (loses settings cache, recent-match state). Never propose or perform a delete; suppressed until an automated clear+reapply-settings tool exists. |
 | **Vanilla** | A known clean baseline copy of a component from the active game or patch. | default, original | For BPB, vanilla means BPB stock unless explicitly qualified as Konami vanilla. Prefer hash evidence over filename claims. |
 
 ### Kits

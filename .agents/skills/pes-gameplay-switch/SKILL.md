@@ -1,6 +1,6 @@
 ---
 name: pes-gameplay-switch
-description: '**Invoke this skill BEFORE proposing or running any switch of `dt13_all.cpk`, `dt18_all.cpk`, `FL_2026.exe`, or other gameplay-stack file on the live PES / Football Life install.** Covers `tools/fl-gameplay.ps1 switch-dt13-vanilla` / `switch-dt18-vanilla`, the canonical gameplay archive root at `%USERPROFILE%\MEGA\gaming\pes\gameplay\`, the SYSTEM cache propose-and-ask rule (propose `SYSTEM00000000` deletion when warranted — dt13/dt18/exe or EDIT-save replacements that prompt "create edit data" — never for kits/cameras/luas; always ask before running), the no-partial-switch rule, and the explicit-user-approval gate. Triggers: "switch to vanilla dt18", "go back to stock", "restore dt13", "swap in alexfe87", "install F4L v5.1", any phrase that implies replacing a gameplay-stack file.'
+description: '**Invoke this skill BEFORE proposing or running any switch of `dt13_all.cpk`, `dt18_all.cpk`, `FL_2026.exe`, or other gameplay-stack file on the live PES / Football Life install.** Covers `tools/fl-gameplay.ps1 switch-dt13-vanilla` / `switch-dt18-vanilla`, the canonical gameplay archive root at `%USERPROFILE%\MEGA\gaming\pes\gameplay\`, the SYSTEM cache suppression rule (never propose, mention, or perform a `SYSTEM00000000` delete; no automated settings-reapply exists so it is net-negative; suppressed until an automated clear+reapply tool exists), the no-partial-switch rule, and the explicit-user-approval gate. Triggers: "switch to vanilla dt18", "go back to stock", "restore dt13", "swap in alexfe87", "install F4L v5.1", any phrase that implies replacing a gameplay-stack file.'
 ---
 
 # PES gameplay switch
@@ -23,8 +23,6 @@ Switches are destructive (overwrite live files in the install). Evidence first, 
 
     - which file(s) will be replaced
     - source hash -> destination hash
-    - whether SYSTEM cache invalidation is warranted (it is for dt13 / dt18 / exe; it is not for kits / cameras / luas)
-    - that you will ASK the user before any SYSTEM delete, never run it as part of the switch
 
 4. For a vanilla switch, prefer the helper:
 
@@ -42,7 +40,7 @@ Switches are destructive (overwrite live files in the install). Evidence first, 
 ## Pitfalls
 
 - **Never partial-switch.** Replacing `dt18` while leaving a previous combo's livecpk root or `lua.module` entry active produces a mixed state the user did not ask for. If a switch can leave the stack mixed, stop and ask.
-- **Propose, do not execute, the `SYSTEM00000000` delete.** For dt13 / dt18 / exe switches the cache invalidation is warranted; surface it as an explicit step and ask the user before running. Never bundle it silently.
+- **Never propose, mention, or perform a `SYSTEM00000000` delete.** The user has no automated way to reapply graphics/system settings, so a delete loses them and is net-negative. Suppressed until an automated clear-cache + reapply-all-settings tool exists; only then revisit. Never delete autonomously regardless.
 - **No file is "obviously unrelated".** If a mod readme bundles an animation pack, a hook, or a livecpk root as part of its gameplay, treat all of it as the gameplay stack. Verify from the mod's instructions before excluding anything.
 - **The user-provided install path wins.** If the user names an install path, use it; do not search broader drives. The path varies per machine — do not hardcode it here; the user names it per session.
 - **Do not create backups the user did not ask for.** The rollback source for a swap is the original mod archive or the `vanilla\` tree already on disk, not a fresh copy of the live file; MEGA is not a backup target. If the prior live file exists nowhere else and would be lost by the overwrite, say so and ask before proceeding. Explicit user-requested backups go to `D:\Backup\`.
