@@ -39,7 +39,7 @@ Gotchas beyond README:
 - `faces map`/`relink` walk **every** `#Win/*.fpk` and `*.fpkd` package, not just `face.fpk`, and rewrite the ID wherever the path appears (covers a separate oral/hair package). The FL26 `face.fpkd` is a 48-byte ID-less `foxfpkd` dependency stub (distinct magic; `parseFpk` rejects it) — carried intact by the folder copy, no rewrite. A length-changing rewrite of a `foxfpkd` that *did* embed the path is refused (no verified repack); an equal-length swap is the format-agnostic in-place replace.
 - `faces map` matches exact normalized name, then a relaxed first+last fallback (surname exact + compatible first name, middle names ignored, collisions rejected), so BPB `Dion Drena Beljo` maps to live `Dion Beljo`.
 - `faces/samples/` CSVs lag the install; never use them for an install.
-- Mark every custom `sider.ini` edit with a `; [GB-CUSTOM] not from UML/patch: <what>, <date> <host>` line above it.
+- Mark every custom `sider.ini` edit with a `; [GB-CUSTOM] manual: <what>, <date> <host>` line above it (positive phrasing; never "not from UML/patch").
 
 ## Domain language
 
