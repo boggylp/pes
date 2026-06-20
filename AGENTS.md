@@ -22,6 +22,7 @@
 - **`SYSTEM00000000` deletion: never propose, mention, or perform it.** The user has no automated way to reapply graphics/system settings, so a delete loses them and is net-negative. Suppressed until an automated clear-cache + reapply-all-settings tool exists; only then revisit. Never delete autonomously regardless. Cost if ever done: wipes settings cache + recent-match state.
 - `tools/fl-gameplay.ps1` for recurring status checks and vanilla dt13/dt18 switches.
 - Query `evoweb/data/` JSON with `duckdb`.
+- evoweb download links: the scraper keeps link text, not hrefs, and post-body parsing skips attachment blocks, so download URLs never land in the JSON. Real downloads are login-walled evoweb attachments (`/attachments/<name>.<id>/`) or masked external links; `xh`/`WebFetch` get Cloudflare 403. Fetch by driving an authenticated browser (`tool-playwright` + evoweb creds) and GET the attachment URL through the logged-in context.
 - Elevation: spawn elevated `pwsh` from the session, don't stop. `Start-Process (Get-Command pwsh.exe).Source -Verb RunAs -Wait -ArgumentList @('-NoProfile','-ExecutionPolicy','Bypass','-File',<script>)`.
 - Sider config reference (sections, `lua.module`, livecpk roots, cache): [SOK Unleashed v9](https://evoweb.uk/threads/soulsofkaos-unleashed-9-pes2013.101010/). Sider 7 Lua scripting API (events, `ctx.register`): [docs](https://mapote.com/doc/sider/sider7/scripting.html) — check before judging whether a `lua.module` runs.
 
