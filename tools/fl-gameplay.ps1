@@ -6,7 +6,9 @@ param(
 
     [string]$GameRoot = (Join-Path ${env:ProgramFiles(x86)} 'SP Football Life 2026'),
 
-    [string]$GameplayRoot = (Join-Path $env:USERPROFILE 'MEGA\gaming\pes\gameplay')
+    [string]$GameplayRoot = (Join-Path $env:USERPROFILE 'MEGA\gaming\pes\gameplay'),
+
+    [string]$VanillaSubdir = 'fl26-v2.2'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -103,6 +105,7 @@ function Resolve-VanillaSource {
 
     $candidates = @(
         (Join-Path $vanillaRoot $FileName),
+        (Join-Path (Join-Path $vanillaRoot $VanillaSubdir) $FileName),
         (Join-Path (Join-Path $vanillaRoot 'dt13 & dt18 vanilla') $FileName)
     )
 
