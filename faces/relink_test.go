@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"encoding/binary"
 	"os"
 	"path/filepath"
@@ -19,47 +18,8 @@ func fixturePath(t *testing.T) string {
 	return p
 }
 
-// assertRelink runs relinkFpkBytes and checks the result is a consistent foxfpk
-// with the ID swapped and ".fmdl" entries still starting with their magic.
-func assertRelink(t *testing.T, raw []byte, old, newID string) {
-	t.Helper()
-	out, err := relinkFpkBytes(raw, old, newID)
-	if err != nil {
-		t.Fatalf("relink %s->%s: %v", old, newID, err)
-	}
-	f, err := parseFpk(out)
-	if err != nil {
-		t.Fatalf("reparse after relink to %s: %v", newID, err)
-	}
-	if got := binary.LittleEndian.Uint32(out[0x0A:]); int(got) != len(out) {
-		t.Errorf("%s: header fileSize %d != len %d", newID, got, len(out))
-	}
-	for _, e := range f.entries {
-		if e.dataOffset+e.dataSize > uint64(len(out)) {
-			t.Errorf("%s: entry %q data past EOF", newID, e.name)
-			continue
-		}
-		d := out[e.dataOffset : e.dataOffset+e.dataSize]
-		if bytes.HasSuffix([]byte(e.name), []byte(".fmdl")) && !bytes.HasPrefix(d, []byte("FMDL")) {
-			t.Errorf("%s: entry %q lost FMDL magic at new offset", newID, e.name)
-		}
-	}
-	if bytes.Contains(out, []byte("real/"+old+"/")) {
-		t.Errorf("%s: old id path still present", newID)
-	}
-	if !bytes.Contains(out, []byte("real/"+newID+"/")) {
-		t.Errorf("%s: new id path absent", newID)
-	}
-	// Equal-length relink must preserve total size. (A longer ID need not grow
-	// the file: 16-byte end alignment can absorb a small delta.)
-	if len(newID) == len(old) && len(out) != len(raw) {
-		t.Errorf("%s: equal-length relink changed size %d -> %d", newID, len(raw), len(out))
-	}
-}
-
-// TestRelinkSynthetic exercises the repack on an in-code foxfpk, so CI covers
-// the logic without the gitignored real fixture.
-func TestRelinkSynthetic(t *testing.T) {
+// TestFindEmbeddedID checks the texture-path ID is read out of packed data.
+func TestFindEmbeddedID(t *testing.T) {
 	raw := buildSyntheticFpk(t)
 	old, err := findEmbeddedID(raw)
 	if err != nil {
@@ -68,31 +28,6 @@ func TestRelinkSynthetic(t *testing.T) {
 	if old != "21665" {
 		t.Fatalf("synthetic embedded id = %q, want 21665", old)
 	}
-	assertRelink(t, raw, old, "2147483648") // length-changing
-	assertRelink(t, raw, old, "99999")      // equal-length
-
-	// The bare ID outside the texture path must not be rewritten.
-	out, err := relinkFpkBytes(raw, old, "2147483648")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !bytes.Contains(out, []byte("mesh21665bytes")) {
-		t.Error("anchored relink corrupted an incidental bare-id byte run")
-	}
-}
-
-// TestRelinkRoundTrip runs the same checks against the real fixture when present.
-func TestRelinkRoundTrip(t *testing.T) {
-	raw, err := os.ReadFile(fixturePath(t))
-	if err != nil {
-		t.Fatal(err)
-	}
-	old, err := findEmbeddedID(raw)
-	if err != nil {
-		t.Fatal(err)
-	}
-	assertRelink(t, raw, old, "2147483648")
-	assertRelink(t, raw, old, "99999")
 }
 
 // buildSyntheticFpk constructs a minimal valid foxfpk: an "a.bin" entry with no
@@ -106,7 +41,7 @@ func buildSyntheticFpk(t *testing.T) []byte {
 	ents := []ent{
 		{"a.bin", []byte("BINDATA\x00padding-no-id")},
 		// "mesh21665bytes" carries the bare ID outside the path; an anchored
-		// relink must leave it untouched.
+		// rewrite must leave it untouched.
 		{"b.fmdl", append([]byte("FMDL\x00\x00\x00\x00mesh21665bytes\x00"),
 			[]byte("/Assets/pes16/model/character/face/real/21665/sourceimages/face_bsm.dds\x00tail\x00")...)},
 	}

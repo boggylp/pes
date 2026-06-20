@@ -53,7 +53,7 @@ func TestRewriteWalksAllPackages(t *testing.T) {
 	stub := foxfpkdStub()
 	writeWinPackage(t, folder, "face.fpkd", stub)
 
-	if err := rewriteFaceFolderID(folder, "21665", "2147483648"); err != nil {
+	if err := rewriteFaceFolderID(folder, "99999"); err != nil {
 		t.Fatalf("rewrite: %v", err)
 	}
 
@@ -68,7 +68,7 @@ func TestRewriteWalksAllPackages(t *testing.T) {
 		if bytes.Contains(raw, []byte("real/21665/")) {
 			t.Errorf("%s: old id path still present", name)
 		}
-		if !bytes.Contains(raw, []byte("real/2147483648/")) {
+		if !bytes.Contains(raw, []byte("real/99999/")) {
 			t.Errorf("%s: new id path absent", name)
 		}
 	}
@@ -90,7 +90,7 @@ func TestRewriteFpkdEqualLength(t *testing.T) {
 	pkg := append(foxfpkdStub(), []byte("face/real/21665/sourceimages/x.dds\x00")...)
 	writeWinPackage(t, folder, "face.fpkd", pkg)
 
-	if err := rewriteFaceFolderID(folder, "21665", "99999"); err != nil {
+	if err := rewriteFaceFolderID(folder, "99999"); err != nil {
 		t.Fatalf("rewrite: %v", err)
 	}
 	got, err := os.ReadFile(filepath.Join(folder, "#Win", "face.fpkd"))
@@ -102,19 +102,51 @@ func TestRewriteFpkdEqualLength(t *testing.T) {
 	}
 }
 
-// TestRewriteFpkdLengthChangeRefused: a length-changing rewrite of a foxfpkd that
-// carries the path is refused, not silently corrupted (no verified repack).
-func TestRewriteFpkdLengthChangeRefused(t *testing.T) {
+// TestRewriteLengthChangeAliases: a length change leaves the package untouched
+// (mutating its FMDL string blob would corrupt texture offsets) and instead
+// mirrors the textures to a sibling folder named for the embedded id, so the
+// unchanged face/real/<oldID>/sourceimages path still resolves.
+func TestRewriteLengthChangeAliases(t *testing.T) {
 	dir := t.TempDir()
-	folder := filepath.Join(dir, "21665")
-	pkg := append(foxfpkdStub(), []byte("face/real/21665/sourceimages/x.dds\x00")...)
-	writeWinPackage(t, folder, "face.fpkd", pkg)
-
-	err := rewriteFaceFolderID(folder, "21665", "2147483648")
-	if err == nil {
-		t.Fatal("expected refusal for length-changing foxfpkd rewrite")
+	folder := filepath.Join(dir, "2147483648") // dest folder = new (10-digit) id
+	writeWinPackage(t, folder, "face.fpk", buildSyntheticFpk(t))
+	tex := filepath.Join(folder, "sourceimages", "#windx11", "face_bsm_alp.ftex")
+	if err := os.MkdirAll(filepath.Dir(tex), 0o755); err != nil {
+		t.Fatal(err)
 	}
-	if !bytes.Contains([]byte(err.Error()), []byte("foxfpkd")) {
-		t.Errorf("error should name the foxfpkd format: %v", err)
+	if err := os.WriteFile(tex, []byte("FTEXDATA"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := rewriteFaceFolderID(folder, "2147483648"); err != nil {
+		t.Fatalf("rewrite: %v", err)
+	}
+
+	raw, err := os.ReadFile(filepath.Join(folder, "#Win", "face.fpk"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(raw, []byte("real/21665/")) {
+		t.Error("length-change rewrite must leave the package id untouched")
+	}
+	alias := filepath.Join(dir, "21665", "sourceimages", "#windx11", "face_bsm_alp.ftex")
+	if _, err := os.Stat(alias); err != nil {
+		t.Errorf("alias texture not created at embedded-id path: %v", err)
+	}
+}
+
+// TestAliasRefusesExistingFace: aliasing must not clobber a real face that
+// already occupies the embedded-id folder.
+func TestAliasRefusesExistingFace(t *testing.T) {
+	dir := t.TempDir()
+	folder := filepath.Join(dir, "2147483648")
+	writeWinPackage(t, folder, "face.fpk", buildSyntheticFpk(t))
+	if err := os.MkdirAll(filepath.Join(folder, "sourceimages"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	writeWinPackage(t, filepath.Join(dir, "21665"), "face.fpk", buildSyntheticFpk(t))
+
+	if err := rewriteFaceFolderID(folder, "2147483648"); err == nil {
+		t.Fatal("expected refusal when alias target is an existing face folder")
 	}
 }

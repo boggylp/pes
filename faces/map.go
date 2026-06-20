@@ -164,9 +164,9 @@ func processOne(srcFolder, destFolder string, item PlayerMapping, skipExisting b
 		return resultError
 	}
 
-	// Rewrite the embedded ID in every #Win package that carries it. Equal-length
-	// IDs are an in-place byte swap; different lengths trigger an FPK repack.
-	switch err := rewriteFaceFolderID(destPath, item.SrcPlayerID, item.DestPlayerID); {
+	// Point the copied folder at the destination ID. Equal-length IDs are an
+	// in-place byte swap; a length change aliases the textures instead.
+	switch err := rewriteFaceFolderID(destPath, item.DestPlayerID); {
 	case err == nil:
 		if len(item.SrcPlayerID) == len(item.DestPlayerID) {
 			return resultProcessed

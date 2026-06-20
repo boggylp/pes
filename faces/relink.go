@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"encoding/binary"
 	"errors"
 	"fmt"
 	"os"
@@ -50,92 +49,39 @@ func findEmbeddedID(raw []byte) (string, error) {
 	return string(m[1]), nil
 }
 
-// relinkFpkBytes rewrites every occurrence of oldID with newID inside the
-// packed entry data of a foxfpk and repacks the archive. Unlike an in-place
-// byte replace, it tolerates a length change: it recomputes each entry's data
-// offset/size (16-byte aligned) and the header file size. This is sound because
-// the IDs live in FMDL texture-path strings that nothing references by offset,
-// and the FMDL carries no self-size field, so no FMDL-internal fixup is needed.
-func relinkFpkBytes(raw []byte, oldID, newID string) ([]byte, error) {
-	f, err := parseFpk(raw)
-	if err != nil {
-		return nil, err
-	}
-	if len(f.entries) == 0 {
-		return nil, fmt.Errorf("foxfpk has no entries")
-	}
-
-	// Anchor on the path so a short numeric ID can't rewrite incidental byte
-	// runs (vertex data, other strings) that happen to match the bare digits.
-	old := []byte("face/real/" + oldID + "/")
-	nw := []byte("face/real/" + newID + "/")
-	newData := make([][]byte, len(f.entries))
-	changed := false
-	for i, e := range f.entries {
-		d := raw[e.dataOffset : e.dataOffset+e.dataSize]
-		if bytes.Contains(d, old) {
-			newData[i] = bytes.ReplaceAll(d, old, nw)
-			changed = true
-		} else {
-			newData[i] = d
+// detectEmbeddedID returns the player ID embedded in the first #Win package that
+// carries a face/real/<id> path. The package is authoritative over any
+// caller-supplied ID (e.g. a CSV folder name that has drifted from the FMDL
+// contents), so the alias target and length decision both come from here.
+func detectEmbeddedID(pkgs []string) (string, error) {
+	for _, p := range pkgs {
+		raw, err := os.ReadFile(p)
+		if err != nil {
+			return "", err
+		}
+		if id, derr := findEmbeddedID(raw); derr == nil {
+			return id, nil
 		}
 	}
-	if !changed {
-		return nil, fmt.Errorf("id %q not found in any packed entry", oldID)
-	}
-
-	// Everything before the first data block (header, entry table, reference
-	// table, name strings) is preserved; only entry-table offsets/sizes and the
-	// header file size change.
-	firstOff := f.entries[0].dataOffset
-	for _, e := range f.entries {
-		if e.dataOffset < firstOff {
-			firstOff = e.dataOffset
-		}
-	}
-	entTableEnd := fpkHeaderSize + len(f.entries)*fpkEntrySize
-	if int(firstOff) < entTableEnd || int(firstOff) > len(raw) {
-		return nil, fmt.Errorf("first data offset 0x%X overlaps entry table or past EOF", firstOff)
-	}
-	out := make([]byte, firstOff)
-	copy(out, raw[:firstOff])
-
-	order := make([]int, len(f.entries))
-	for i := range order {
-		order[i] = i
-	}
-	sort.Slice(order, func(a, b int) bool {
-		return f.entries[order[a]].dataOffset < f.entries[order[b]].dataOffset
-	})
-
-	cursor := int(firstOff)
-	for _, i := range order {
-		if pad := cursor % fpkAlign; pad != 0 {
-			out = append(out, make([]byte, fpkAlign-pad)...)
-			cursor += fpkAlign - pad
-		}
-		ent := fpkHeaderSize + i*fpkEntrySize
-		binary.LittleEndian.PutUint64(out[ent+32:], uint64(cursor))
-		binary.LittleEndian.PutUint64(out[ent+40:], uint64(len(newData[i])))
-		out = append(out, newData[i]...)
-		cursor += len(newData[i])
-	}
-	if pad := len(out) % fpkAlign; pad != 0 { // archives are padded to a 16-byte boundary
-		out = append(out, make([]byte, fpkAlign-pad)...)
-	}
-	binary.LittleEndian.PutUint32(out[0x0A:], uint32(len(out)))
-	return out, nil
+	return "", errNoEmbeddedID
 }
 
-// rewriteFaceFolderID rewrites the embedded face/real/<oldID>/ path to newID in
-// every #Win face package that contains it. Equal-length IDs use an in-place
-// byte replace, which is format-agnostic and size-preserving (safe for foxfpk
-// and foxfpkd alike). A length change needs the foxfpk repacker; a length change
-// in a foxfpkd is refused rather than risk corrupting an unverified layout.
-func rewriteFaceFolderID(folder, oldID, newID string) error {
-	if oldID == newID {
-		return nil // already correct
-	}
+// rewriteFaceFolderID points a placed face folder at newID, deriving the current
+// ID from the packages themselves.
+//
+// Equal-length IDs are swapped in place inside every #Win package that carries
+// the face/real/<id>/ path: a size-preserving byte replace, format-agnostic
+// across foxfpk and foxfpkd.
+//
+// A length change must NOT touch the packages. The ID sits in the FMDL's packed
+// null-terminated string blob, reached through a string offset table; growing or
+// shrinking the string shifts every following string while the offsets keep
+// their old values, so the texture filenames the model reads come out off by the
+// length delta and the face renders with missing textures. Instead the textures
+// are aliased (see aliasFaceTextures): the FMDL keeps pointing at the original
+// face/real/<oldID>/sourceimages, and that directory is provided. The model
+// still loads, because binding is by folder name, not by the embedded path.
+func rewriteFaceFolderID(folder, newID string) error {
 	pkgs, err := winPackages(folder)
 	if err != nil {
 		return err
@@ -143,6 +89,17 @@ func rewriteFaceFolderID(folder, oldID, newID string) error {
 	if len(pkgs) == 0 {
 		return errNoFpk
 	}
+	oldID, err := detectEmbeddedID(pkgs)
+	if err != nil {
+		return err
+	}
+	if oldID == newID {
+		return nil // already correct
+	}
+	if len(oldID) != len(newID) {
+		return aliasFaceTextures(folder, oldID)
+	}
+
 	old := []byte("face/real/" + oldID + "/")
 	nw := []byte("face/real/" + newID + "/")
 	rewrote := false
@@ -154,18 +111,7 @@ func rewriteFaceFolderID(folder, oldID, newID string) error {
 		if !bytes.Contains(raw, old) {
 			continue // ID-less stub or unrelated package
 		}
-		var out []byte
-		switch {
-		case len(oldID) == len(newID):
-			out = bytes.ReplaceAll(raw, old, nw)
-		case isFoxFpk(raw):
-			if out, err = relinkFpkBytes(raw, oldID, newID); err != nil {
-				return fmt.Errorf("%s: %w", p, err)
-			}
-		default:
-			return fmt.Errorf("%s: length-changing relink of a %s package is unsupported", p, containerKind(raw))
-		}
-		if err := os.WriteFile(p, out, 0o644); err != nil {
+		if err := os.WriteFile(p, bytes.ReplaceAll(raw, old, nw), 0o644); err != nil {
 			return err
 		}
 		rewrote = true
@@ -176,30 +122,24 @@ func rewriteFaceFolderID(folder, oldID, newID string) error {
 	return nil
 }
 
-// relinkFaceFolder auto-detects the current embedded ID from a face folder's
-// #Win packages and rewrites every package to newID. Used by the standalone
-// `relink` command, where only the new ID is known.
-func relinkFaceFolder(folder, newID string) error {
-	pkgs, err := winPackages(folder)
-	if err != nil {
+// aliasFaceTextures makes a length-mismatched face render without mutating its
+// FMDL: it mirrors the folder's sourceimages into a sibling directory named for
+// the ID still embedded in the package, so the embedded
+// face/real/<oldID>/sourceimages path resolves against the same livecpk root.
+// It refuses when that sibling is itself a real face folder (has #Win), to avoid
+// clobbering another player's face.
+func aliasFaceTextures(folder, oldID string) error {
+	src := filepath.Join(folder, "sourceimages")
+	if fi, err := os.Stat(src); err != nil || !fi.IsDir() {
+		return fmt.Errorf("face folder %s has no sourceimages to alias for embedded id %s", folder, oldID)
+	}
+	aliasRoot := filepath.Join(filepath.Dir(folder), oldID)
+	if _, err := os.Stat(filepath.Join(aliasRoot, "#Win")); err == nil {
+		return fmt.Errorf("alias target %s is an existing face folder; refusing to overwrite", aliasRoot)
+	}
+	dst := filepath.Join(aliasRoot, "sourceimages")
+	if err := os.MkdirAll(dst, 0o755); err != nil {
 		return err
 	}
-	if len(pkgs) == 0 {
-		return errNoFpk
-	}
-	oldID := ""
-	for _, p := range pkgs {
-		raw, err := os.ReadFile(p)
-		if err != nil {
-			return err
-		}
-		if id, derr := findEmbeddedID(raw); derr == nil {
-			oldID = id
-			break
-		}
-	}
-	if oldID == "" {
-		return errNoEmbeddedID
-	}
-	return rewriteFaceFolderID(folder, oldID, newID)
+	return copyDir(src, dst)
 }

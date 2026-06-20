@@ -1,6 +1,6 @@
 ---
 name: pes-faces-install
-description: '**Invoke this skill BEFORE installing, mapping, or detecting player faces for the live Football Life 2026 install.** Covers the `faces/` Go tool (`detect` for orphan / ID-mismatch scans, `map` for cross-version remapping, `relink` for length-changing FPK repacks), deriving the destination roster from the AUTHORITATIVE live DB (the install''s `UML 2026 - Player IDs.csv` or the livecpk `UML_Database` `Player.bin`, never the stale base `FL26_players.txt` which UML renumbers), the destination `SiderAddons\livecpk\...\face\real\<player_id>\`, the exact-then-relaxed name matcher, length-mismatch handling via `relink` (FPK repack), the FPK-embedded-ID-must-match rule (incl. created players), and the mandatory rollback record. Triggers: "install these faces", "map BPB faces to FL26", "remap player IDs", "find orphan faces", "fix face mismatches".'
+description: '**Invoke this skill BEFORE installing, mapping, or detecting player faces for the live Football Life 2026 install.** Covers the `faces/` Go tool (`detect` for orphan / ID-mismatch scans, `map` for cross-version remapping, `relink` for length-mismatch installs), deriving the destination roster from the AUTHORITATIVE live DB (the install''s `UML 2026 - Player IDs.csv` or the livecpk `UML_Database` `Player.bin`, never the stale base `FL26_players.txt` which UML renumbers), the destination `SiderAddons\livecpk\...\face\real\<player_id>\`, the exact-then-relaxed name matcher, length-mismatch handling via `relink` (texture aliasing, not FMDL byte-rewrite), the binding-by-folder-name rule (incl. created players), and the mandatory rollback record. Triggers: "install these faces", "map BPB faces to FL26", "remap player IDs", "find orphan faces", "fix face mismatches".'
 ---
 
 # PES face install
@@ -47,7 +47,7 @@ Faces are the easiest mod to install wrong: silent drops on length mismatch, eas
 
     Matches by normalized name; copies the face folder, renames it to the destination ID, and rewrites the embedded ID inside `face.fpk` via `strings.ReplaceAll`.
 
-4. **Handle length mismatches.** `map` installs equal-length ID pairs by replacing the decimal ID in place, and routes different-length pairs (e.g. `72284` -> `177929`, or a created-player 10-digit ID like `2147483648`) through `faces relink`, which repacks the foxfpk (an in-place byte swap would corrupt offsets). Standalone for a single folder: `faces relink --folder <faceDir> --id <newID>` (old ID auto-detected). The map summary reports the relinked count. Verify relinked faces in-game (the repack is structurally tested, not render-verified).
+4. **Handle length mismatches.** `map` installs equal-length ID pairs by replacing the decimal ID in place inside the packages. Different-length pairs (e.g. `72284` -> `177929`, `110903` -> `72555`, or a created-player 10-digit ID like `2147483648`) route through `faces relink`, which **leaves the packages untouched and aliases the textures**: it mirrors `sourceimages` into a sibling folder named for the embedded old ID, so the unchanged `face/real/<oldID>/sourceimages` path still resolves. Byte-rewriting a length-changing ID corrupts the FMDL string-offset table and renders red/grey skin (verified failure, BogambeDesktop 2026-06-20). Standalone for a single folder: `faces relink --folder <faceDir> --id <newID>` (old ID auto-detected). The map summary reports the relinked count; aliasing refuses to overwrite a sibling that is already a real face folder. A length-mismatched install leaves an extra textures-only folder named for the old ID (expected; `detect` may flag it as orphan).
 
 5. **Salvage near-misses** the matcher can't catch:
 
@@ -77,4 +77,4 @@ Faces are the easiest mod to install wrong: silent drops on length mismatch, eas
 
 - Roster / player ID extraction from cpk + Player.bin: see pes-roster-extract.
 - Kit textures: see pes-kit-ftex.
-- Length-changing FPK repack internals (foxfpk parse + offset recompute): see `faces/relink.go` and `faces/fpk.go`.
+- Length-mismatch texture-aliasing internals and equal-length in-place swap: see `faces/relink.go` and `faces/fpk.go`.

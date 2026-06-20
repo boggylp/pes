@@ -31,7 +31,7 @@ func printUsage() {
 commands:
   detect [flags]  detect mismatched player faces in livecpk folder
   map    [flags]  map player faces between game versions
-  relink [flags]  rewrite a face folder's embedded ID to a new ID (length-changing)`)
+  relink [flags]  point a face folder at a new player ID (equal-length swap, or texture-alias on a length change)`)
 }
 
 func cmdRelink(args []string) {
@@ -46,7 +46,7 @@ func cmdRelink(args []string) {
 		fs.PrintDefaults()
 		os.Exit(1)
 	}
-	if err := relinkFaceFolder(*folder, *newID); err != nil {
+	if err := rewriteFaceFolderID(*folder, *newID); err != nil {
 		fmt.Fprintf(os.Stderr, "relink failed: %v\n", err)
 		os.Exit(1)
 	}

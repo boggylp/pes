@@ -26,18 +26,6 @@ func isFoxFpkd(b []byte) bool { return bytes.HasPrefix(b, fpkdMagic) }
 // isFoxFpk reports whether b is a foxfpk packed archive (and not a foxfpkd).
 func isFoxFpk(b []byte) bool { return bytes.HasPrefix(b, fpkMagic) && !isFoxFpkd(b) }
 
-// containerKind names the package format for diagnostics.
-func containerKind(b []byte) string {
-	switch {
-	case isFoxFpkd(b):
-		return "foxfpkd"
-	case isFoxFpk(b):
-		return "foxfpk"
-	default:
-		return "unknown"
-	}
-}
-
 type fpkEntry struct {
 	nameOffset uint64
 	nameSize   uint64

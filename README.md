@@ -146,11 +146,11 @@ go run . map \
   --source-folder /path/to/source/faces \
   --dest-folder /path/to/destination/faces
 
-# Relink a single face folder's embedded ID (length-changing; FPK repack)
+# Point a single face folder at a new player ID
 go run . relink --folder /path/to/face/real/100219 --id 2147483648
 ```
 
-`map` and `relink` rewrite the embedded `face/real/<id>/` path in every `#Win/*.fpk` and `*.fpkd` package in a face folder. The FL26 `face.fpkd` is an ID-less dependency stub (copied intact, nothing to rewrite); a separate package that embeds the path is also handled.
+`map` and `relink` point a face folder at a new player ID. For an **equal-length** ID they swap the embedded `face/real/<id>/` path in place inside every `#Win/*.fpk` and `*.fpkd` package (the FL26 `face.fpkd` is an ID-less dependency stub, left intact; a separate package that embeds the path is handled). For a **length change** they leave the packages untouched and instead mirror the folder's `sourceimages` into a sibling folder named for the embedded ID, so the unchanged `face/real/<oldID>/sourceimages` texture path still resolves. The model binds by folder name, so it loads regardless; aliasing avoids corrupting the FMDL string table that a length-changing byte rewrite would shift.
 
 ## pesdb
 
