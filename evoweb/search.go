@@ -75,7 +75,7 @@ func cmdSearch(args []string) {
 	}
 	finalURL := resp.Request.URL.String()
 	body, _ := io.ReadAll(resp.Body)
-	resp.Body.Close()
+	_ = resp.Body.Close()
 	log.Printf("search POST landed at: %s (HTTP %d, %d bytes)", finalURL, resp.StatusCode, len(body))
 
 	threads := map[string]struct{}{}
@@ -93,12 +93,12 @@ func cmdSearch(args []string) {
 			r2, err := client.Do(req2)
 			if err != nil || r2.StatusCode != 200 {
 				if r2 != nil {
-					r2.Body.Close()
+					_ = r2.Body.Close()
 				}
 				break
 			}
 			b2, _ := io.ReadAll(r2.Body)
-			r2.Body.Close()
+			_ = r2.Body.Close()
 			before := len(threads)
 			for _, m := range threadLinkRegex.FindAllString(string(b2), -1) {
 				threads[m] = struct{}{}

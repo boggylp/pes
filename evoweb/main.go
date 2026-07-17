@@ -27,6 +27,8 @@ func main() {
 		cmdForum(os.Args[2:])
 	case "search":
 		cmdSearch(os.Args[2:])
+	case "download":
+		cmdDownload(os.Args[2:])
 	default:
 		printUsage()
 		os.Exit(1)
@@ -39,7 +41,8 @@ func printUsage() {
 commands:
   login              save evoweb.uk credentials
   scrape [flags] URL scrape a XenForo thread
-  forum  [flags] URL list threads from a XenForo forum`)
+  forum  [flags] URL list threads from a XenForo forum
+  download [flags] URL download a file (e.g. attachment) with the logged-in session`)
 }
 
 func cmdLogin() {

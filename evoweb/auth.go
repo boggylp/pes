@@ -74,7 +74,7 @@ func extractCSRFToken(client *http.Client) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("fetching login page: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return "", fmt.Errorf("login page returned HTTP %d", resp.StatusCode)
@@ -124,7 +124,7 @@ func loginToForum(creds Credentials) (*http.Client, error) {
 	if err != nil {
 		return nil, fmt.Errorf("login POST failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	// Check for xf_user cookie (indicates successful login)
 	u, _ := url.Parse(baseURL)
