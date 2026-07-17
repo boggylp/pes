@@ -1,6 +1,6 @@
 ---
 name: pes-aikb-log
-description: '**Invoke this skill BEFORE writing or updating a PES / Football Life article in the AI Knowledge Base at `~/dev/priv/ai-knowledge-base/wiki/pes/`.** Covers the existing article set (`gameplay-combos-fl26.md`, `bpb-2026.md`, `livecpk-face-management.md`, `evoweb-credibility-signals.md`, and others), the mandatory hostname tag on every playtest / verdict entry (`BogambeDesktop` desktop / `DESKTOP-J0MDFMU` laptop), the AIKB house style (lead with conclusion, tight bullets, mark hypotheses once with `**Not verified**`), and the commit-and-push step that closes the loop. Triggers: "log this to the KB", "save the verdict", "record the install state in obsidian-kb", "update the AIKB", "this is the best combo, log it", "/obsidian-kb …" for PES content.'
+description: 'Invoke BEFORE writing or updating a PES / Football Life article in the AI Knowledge Base at `~/dev/priv/ai-knowledge-base/wiki/pes/`. Covers article routing, the mandatory hostname tag on playtest / verdict entries, the AIKB house style, and the closing commit+push. Triggers: "log this to the KB", "save the verdict", "update the AIKB", "/obsidian-kb …" for PES content.'
 metadata:
   trusted_sources:
     - https://keepachangelog.com/en/1.1.0/
@@ -21,26 +21,26 @@ The final step of most PES sessions: write durable findings into `wiki/pes/`. Ho
 
 1. **Pick the right article.** Match by topic, not by date.
 
-    | Article                                       | Scope                                                   |
-    | --------------------------------------------- | ------------------------------------------------------- |
-    | `wiki/pes/gameplay-combos-fl26.md`            | FL26 desktop install gameplay combos and verdicts       |
-    | `wiki/pes/bpb-2026.md`                        | BPB laptop install (the `DESKTOP-J0MDFMU` machine)      |
-    | `wiki/pes/livecpk-face-management.md`         | Faces, livecpk, face install workflow                   |
-    | `wiki/pes/evoweb-credibility-signals.md`      | Author / mod reputation signals from evoweb             |
-    | `wiki/pes/ai-tweaks-twiggy.md`                | Twiggy / AI-tweaks specific findings                    |
-    | `wiki/pes/soccer-revolution-revamped.md`      | Soccer Revolution patch                                 |
-    | `wiki/pes/simsnob-experience.md`              | SimSnob mod experience                                  |
-    | `wiki/pes/multi-monitor-lag-gaming.md`        | Multi-monitor stutter / gaming display issues           |
+   | Article | Scope |
+   | --- | --- |
+   | `wiki/pes/gameplay-combos-fl26.md` | FL26 desktop install gameplay combos and verdicts |
+   | `wiki/pes/bpb-2026.md` | BPB install (the `BogambeLegion5` laptop) |
+   | `wiki/pes/livecpk-face-management.md` | Faces, livecpk, face install workflow |
+   | `wiki/pes/evoweb-credibility-signals.md` | Author / mod reputation signals from evoweb |
+   | `wiki/pes/ai-tweaks-twiggy.md` | Twiggy / AI-tweaks specific findings |
+   | `wiki/pes/soccer-revolution-revamped.md` | Soccer Revolution patch |
+   | `wiki/pes/simsnob-experience.md` | SimSnob mod experience |
+   | `wiki/pes/multi-monitor-lag-gaming.md` | Multi-monitor stutter / gaming display issues |
 
-    If no article fits, create a new one with a kebab-case filename.
+   If no article fits, create a new one with a kebab-case filename.
 
-2. **Tag every machine-specific entry with the hostname.** The desktop is `BogambeDesktop`; the laptop is `DESKTOP-J0MDFMU`. Examples:
+2. **Tag every machine-specific entry with the hostname**, verified via `hostname`, never inferred. Known machines: `BogambeDesktop` (desktop), `BogambeLegion5` (Legion 5 laptop, formerly `DESKTOP-J0MDFMU`). Example:
 
-    ```markdown
-    ## User's best combo verdict (2026-05-20, `BogambeDesktop`)
-    ```
+   ```markdown
+   ## User's best combo verdict (2026-05-20, `BogambeDesktop`)
+   ```
 
-    Never write "this desktop" or "the laptop" without the hostname.
+   Never write "this desktop" or "the laptop" without the hostname.
 
 3. **Match the AIKB house style.** Lead with the conclusion, then evidence. Tight bullets and short factual sentences over prose. Mark hypotheses **once** with `**Not verified**` and move on; do not hedge again. No multi-paragraph qualifications, no redundant restatements. See repo `AGENTS.md` "AIKB notes are concise and punctual".
 
@@ -50,22 +50,22 @@ The final step of most PES sessions: write durable findings into `wiki/pes/`. Ho
 
 6. **Commit and push the vault** when the entry is durable:
 
-    ```sh
-    cd ~/dev/priv/ai-knowledge-base
-    git add wiki/pes/<file>.md
-    git commit -m "🤖: Log <subject> from <hostname>"
-    git push
-    ```
+   ```sh
+   cd ~/dev/priv/ai-knowledge-base
+   git add wiki/pes/<file>.md
+   git commit -m "🤖: Log <subject> from <hostname>"
+   git push
+   ```
 
-    The vault commits use the same `🤖:` prefix as code commits (see global `AGENTS.md` "AI-output format").
+   The vault commits use the same `🤖:` prefix as code commits (see global `AGENTS.md` "AI-output format").
 
 ## Pitfalls
 
 - **No hostname = entry is wrong.** Two machines feed this vault. An untagged playtest verdict is unfalsifiable across machines.
-- **No status theater.** Drop "I have updated the AIKB", "I will now log this", "I should have …". Name the file edited and stop. See `AGENTS.md` "Outbound text is the highest priority".
+- **No status theater.** Drop "I have updated the AIKB", "I will now log this". Name the file edited and stop.
 - **No marketing in the wiki.** "Best ever", "revolutionary", "always" are wrong even when the user is excited. Write what was tested, on what hashes, with what verdict.
-- **Quote evoweb posts surgically.** Single sentence plus URL, never multi-paragraph copy. See `AGENTS.md` "Evidence and citations".
-- **Do not delete a prior verdict to replace it.** Edit in place; the historical entry (with its date and hostname) is the audit trail. See `AGENTS.md` "Edit in place".
+- **Quote evoweb posts surgically.** Single sentence plus URL, never multi-paragraph copy.
+- **Do not delete a prior verdict to replace it.** Edit in place; the historical entry (with its date and hostname) is the audit trail.
 
 ## Out of scope
 

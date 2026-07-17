@@ -7,9 +7,9 @@
 - Monorepo; independent tools per subdir, own language/build.
 - Before every commit, run `make all` in the changed subdir.
 - Tracked changes in `git status` → ask `commit/push?`; commit+push on confirm.
-- PES/Football Life mod questions: check AIKB (`~/dev/priv/ai-knowledge-base/wiki/pes/`) first, then `evoweb/data/` freshness; scrape >1 week old → rescrape before answering. Update AIKB when findings worth preserving.
+- PES/Football Life mod questions: check AIKB (`~/dev/priv/ai-knowledge-base/wiki/pes/`) first; what's-new questions always rescrape the forum listing + active threads before answering, other questions rescrape when data is >1 week old. Update AIKB when findings worth preserving.
 - AIKB house style: lead with conclusion, tight bullets, short factual sentences, mark hypotheses **Not verified** once.
-- Live-install task → read the live install's game-root `AGENTS.md` + `README.md` first (install path varies per machine; the user-given path wins).
+- Live-install task → read the live install's game-root `AGENTS.md` + `README.md` first.
 - Canonical gameplay backup root: `%USERPROFILE%\MEGA\gaming\pes\gameplay\`; EDIT/SYSTEM saves under `%USERPROFILE%\MEGA\gaming\pes\edit\saves\`.
 - Save/EDIT/SYSTEM backup filenames must embed the FL26 version, machine, and date: `fl26-<savetype>_fl26-<version>_<machine>_<YYYY-MM-DD>`. Version = patch name + exe FileVersion (e.g. `v2.2-26.2.0.3`).
 - User-given install path is authoritative; don't search wider unless it fails or they ask.
@@ -19,10 +19,10 @@
 - No gameplay/config change to a live install without explicit user approval of the change step.
 - Before any switch, inventory the full stack (dt13, dt18, gameplay livecpk roots, gameplay `lua.module` entries, exe, hooks, cache); verify each from evidence or mod instructions. A file named like an animation/visual addon counts as gameplay if a mod readme bundles it.
 - No partial switch leaving a mixed state unless the user asked for that exact mix.
-- **`SYSTEM00000000` deletion: never propose, mention, or perform it.** The user has no automated way to reapply graphics/system settings, so a delete loses them and is net-negative. Suppressed until an automated clear-cache + reapply-all-settings tool exists; only then revisit. Never delete autonomously regardless. Cost if ever done: wipes settings cache + recent-match state.
+- **`SYSTEM00000000` deletion: never propose, mention, or perform it** until an automated clear-cache + reapply-all-settings tool exists. A delete wipes the settings cache + recent-match state, and the user has no automated way to reapply settings.
 - `tools/fl-gameplay.ps1` for recurring status checks and vanilla dt13/dt18 switches.
 - Query `evoweb/data/` JSON with `duckdb`.
-- evoweb download links: the scraper keeps link text, not hrefs, and post-body parsing skips attachment blocks, so download URLs never land in the JSON. Real downloads are login-walled evoweb attachments (`/attachments/<name>.<id>/`) or masked external links; `xh`/`WebFetch` get Cloudflare 403. Fetch by driving an authenticated browser (`tool-playwright` + evoweb creds) and GET the attachment URL through the logged-in context.
+- evoweb downloads: hrefs never land in scrape JSON (link text only; attachment blocks skipped). Extract the href with an authenticated browser (`tool-playwright` + evoweb profile), then fetch attachment URLs (`/attachments/<name>.<id>/`) with `evoweb download --output <file> <url>`; the Go login session passes the Cloudflare wall that blocks `xh`/`WebFetch`.
 - Elevation: spawn elevated `pwsh` from the session, don't stop. `Start-Process (Get-Command pwsh.exe).Source -Verb RunAs -Wait -ArgumentList @('-NoProfile','-ExecutionPolicy','Bypass','-File',<script>)`.
 - Sider config reference (sections, `lua.module`, livecpk roots, cache): [SOK Unleashed v9](https://evoweb.uk/threads/soulsofkaos-unleashed-9-pes2013.101010/). Sider 7 Lua scripting API (events, `ctx.register`): [docs](https://mapote.com/doc/sider/sider7/scripting.html) — check before judging whether a `lua.module` runs.
 
@@ -36,40 +36,40 @@ Gotchas beyond README:
 - pesdb stride 312 B. Player.bin: Id `+0x08`, name `+0x44`, shirt `+0x81`. EDIT `data.dat`: Id `+0x0C`, name `+0x42`, shirt `+0x7F`, records from offset 112.
 - **Authoritative roster = the live DB, not `FL26_players.txt`.** UML (or any DB patch) replaces `Player.bin` via livecpk (`SiderAddons\livecpk\UML_Database\...\Player.bin`) and renumbers players (Beljo base `91287` vs UML `58035`), so the stale base export keys faces to wrong/dead IDs. Before face/ID work: use the install's provided list (`UML 2026 - Player IDs.csv`, `... - Team IDs.csv`) or extract the live `UML_Database` `Player.bin` with `pesdb`; verify Beljo's ID.
 - Nationality byte = `+0x1D` (BPB `Player.bin`; UML team `Country` uses a different scheme). Balkan: Croatia 144, Serbia 94, Bosnia 140, Montenegro 97 (132 = Austria), N.Macedonia 186, Slovenia 214, Albania 126, Kosovo 110.
-- The model binds to a player by the **face folder name** (the player ID); textures load from the `face/real/<id>/sourceimages` path embedded in the FMDL. A face renders default only when the model fails to load; broken textures (red/grey skin) on a loaded model mean the embedded texture path does not resolve. Equal-length ID change: byte-replace the embedded decimal ID in place. Length-changing ID (created-player `0x80000000`+ = 10 digits, or any digit-count change like `110903` -> `72555`): **do not** byte-rewrite the FMDL. The texture path lives in the FMDL's packed null-terminated string blob reached through an offset table; shrinking or growing the ID shifts every following string while the offsets keep their old values, so texture filenames read off-by-delta and the skin renders red/grey (verified failure, BogambeDesktop 2026-06-20). Instead alias the textures: keep the package pointing at the original `face/real/<oldID>/sourceimages` and mirror `sourceimages` into a sibling folder named `<oldID>`. `faces relink`/`map` do this automatically; aliasing refuses to overwrite a sibling that is itself a real face folder.
+- The model binds to a player by the **face folder name** (the player ID); textures load from the `face/real/<id>/sourceimages` path embedded in the FMDL. A face renders default when the model fails to load; red/grey skin on a loaded model means the embedded texture path does not resolve. Equal-length ID change: byte-replace the embedded decimal ID in place. Length-changing ID (created-player `0x80000000`+ = 10 digits, or any digit-count change): **never byte-rewrite the FMDL** — the texture path sits in a packed string blob behind an offset table, so a length change shifts every following string off-by-delta and the skin renders red/grey (verified failure, BogambeDesktop 2026-06-20). Alias instead: keep the package pointing at `face/real/<oldID>/sourceimages` and mirror `sourceimages` into a sibling folder named `<oldID>`. `faces relink`/`map` do this automatically and refuse to overwrite a sibling that is itself a real face folder.
 - `faces map`/`relink` walk **every** `#Win/*.fpk` and `*.fpkd` package for an equal-length swap (covers a separate oral/hair package). The FL26 `face.fpkd` is a 48-byte ID-less `foxfpkd` dependency stub (distinct magic; `parseFpk` rejects it) — carried intact by the folder copy, no rewrite. A length change touches no package (texture aliasing instead), so it is format-agnostic across foxfpk and foxfpkd.
 - `faces map` matches exact normalized name, then a relaxed first+last fallback (surname exact + compatible first name, middle names ignored, collisions rejected), so BPB `Dion Drena Beljo` maps to live `Dion Beljo`.
 - `faces/samples/` CSVs lag the install; never use them for an install.
-- Mark every custom `sider.ini` edit with a `; [GB-CUSTOM] manual: <what>, <date> <host>` line above it (positive phrasing; never "not from UML/patch").
+- Mark manual `sider.ini` edits with one `; [GB-CUSTOM]` line per contiguous block (provenance tag, so patch reinstalls don't clobber them). Add words only for a constraint the lines can't say (e.g. ordering); versions, dates, hosts, rationale, and history live in the `; gameplay:` tracking line and AIKB, never in markers.
 
 ## Domain language
 
 ### Archives and game data
 
 | Term | Definition | Aliases to avoid | Notes |
-| ---- | ---------- | ---------------- | ----- |
-| **CPK** | A CRI Middleware archive used by PES and Football Life to package game data. | archive file | |
+| --- | --- | --- | --- |
+| **CPK** | A CRI Middleware archive used by PES and Football Life to package game data. | archive file |  |
 | **EDIT save** | The encrypted user save that carries custom adds and edits on top of the archive Player.bin baseline. | edit file, option file | Do not treat it as parseable by the repo CPK tool. |
 | **Inner path** | The path of a file inside a CPK archive. | internal path, archive path | Matching is case-insensitive and slash-normalized in the repo tool. |
 | **Load order** | The order in which base archives, patch archives, DLC archives, livecpk roots, and Sider modules override earlier game data. | priority, precedence | State the scope when discussing it. |
 | **Player.bin** | Konami's binary player database stored inside PES archive data, packaged as a WESYS+zlib envelope. | player DB, players file | BPB and FL26 ship distinct Player.bin bytes; EDIT save carries custom adds on top. Decode with the repo's `pesdb` tool. |
-| **Table of contents** | The parsed CPK entry list used to list and extract archived files. | TOC | |
+| **Table of contents** | The parsed CPK entry list used to list and extract archived files. | TOC |  |
 
 ### Faces
 
 | Term | Definition | Aliases to avoid | Notes |
-| ---- | ---------- | ---------------- | ----- |
-| **Face folder** | A numeric player-ID directory containing the face assets loaded by the game. | player folder, ID folder | |
+| --- | --- | --- | --- |
+| **Face folder** | A numeric player-ID directory containing the face assets loaded by the game. | player folder, ID folder |  |
 | **Face install** | Copying or remapping a face folder into the live install's configured face root. | face import | Requires a rollback record. |
 | **FPK** | A PES package file inside a face folder that embeds asset paths and the referenced player ID. | face.fpk | Length-sensitive path data makes naive ID replacement unsafe. |
 | **Length mismatch** | A source and destination player ID pair whose decimal string lengths differ. | digit mismatch | Requires an FPK-aware editor, not forced install. |
-| **Orphaned face** | A face folder whose ID does not exist in the active player database. | orphan | |
-| **Player ID** | The numeric identifier that links player database rows to face folders and embedded FPK paths. | face ID | |
+| **Orphaned face** | A face folder whose ID does not exist in the active player database. | orphan |  |
+| **Player ID** | The numeric identifier that links player database rows to face folders and embedded FPK paths. | face ID |  |
 
 ### Gameplay and live install
 
 | Term | Definition | Aliases to avoid | Notes |
-| ---- | ---------- | ---------------- | ----- |
+| --- | --- | --- | --- |
 | **dt13** | The gameplay-related CPK component commonly changed by gameplay patches. | dt13 file | Verify by hash before identifying it. |
 | **dt18** | The gameplay-related CPK component commonly changed by gameplay patches. | dt18 file | Verify by hash before identifying it. |
 | **Effective gameplay** | The gameplay behavior that should win after applying load order, not merely every gameplay-related component installed or wired. | installed combo | State both when they differ. |
@@ -82,7 +82,7 @@ Gotchas beyond README:
 ### Kits
 
 | Term | Definition | Aliases to avoid | Notes |
-| ---- | ---------- | ---------------- | ----- |
+| --- | --- | --- | --- |
 | **FTEX** | The PES texture container format used by kitserver for kit textures. | ftex file | The converter emits single embedded FTEX files. |
 | **Kit slot** | The numbered player or goalkeeper kit variant selected by kitserver naming. | slot | Valid slot values are tool-specific. |
 | **Kitserver** | The Sider-based kit loading system that maps teams and kit slots to texture folders. | kit loader | Folder scaffolding is separate from texture conversion. |
@@ -91,17 +91,17 @@ Gotchas beyond README:
 ### Sider and mod loading
 
 | Term | Definition | Aliases to avoid | Notes |
-| ---- | ---------- | ---------------- | ----- |
-| **cpk.root entry** | A Sider config entry that adds a livecpk root to the game data override chain. | cpk root, livecpk entry | |
-| **livecpk root** | A loose-file directory that Sider presents to the game as overrideable CPK content. | livecpk folder | |
+| --- | --- | --- | --- |
+| **cpk.root entry** | A Sider config entry that adds a livecpk root to the game data override chain. | cpk root, livecpk entry |  |
+| **livecpk root** | A loose-file directory that Sider presents to the game as overrideable CPK content. | livecpk folder |  |
 | **lua.module entry** | A Sider config entry that loads a Lua module into the game process. | Lua module, module entry | Treat bundled gameplay modules as part of the gameplay stack. Loaded is not running: a module that never registers a real Sider event via `ctx.register` is dead code (e.g. Holland's `Difficulty_Manager.lua`). |
 | **Sider** | The PES mod loader that injects modules and loose-file roots into the running game. | sider.ini | `sider.ini` is the config file, not the loader. |
 
 ### Web research
 
 | Term | Definition | Aliases to avoid | Notes |
-| ---- | ---------- | ---------------- | ----- |
+| --- | --- | --- | --- |
 | **AI Knowledge Base** | The private PES research wiki checked before answering mod and community-content questions. | AIKB | Update it when findings are worth preserving. |
 | **Evoweb scrape** | A persisted JSON capture of an Evoweb thread or forum listing. | scrape data, scraped JSON | Must be refreshed when stale for the question. |
-| **Forum listing** | A XenForo forum index page used to discover thread URLs and metadata. | forum page | |
-| **Thread** | A XenForo discussion page scraped as posts and metadata. | topic | |
+| **Forum listing** | A XenForo forum index page used to discover thread URLs and metadata. | forum page |  |
+| **Thread** | A XenForo discussion page scraped as posts and metadata. | topic |  |

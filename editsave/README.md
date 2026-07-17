@@ -1,11 +1,6 @@
 # editsave
 
-Headless wrapper around `decrypter21.exe` and `encrypter21.exe` (zlac, 2020) for
-Konami PES 2021 / SP Football Life 2026 `EDIT00000000` saves. Orchestrates the
-two binaries, normalizes paths, verifies output structure, and refuses to
-overwrite live game state without an explicit `--force`. The tool never modifies
-save contents — it owns only the decrypt → modify → encrypt boundary so callers
-can edit the decrypted `data.dat` in between.
+Headless wrapper around `decrypter21.exe` and `encrypter21.exe` (zlac, 2020) for Konami PES 2021 / SP Football Life 2026 `EDIT00000000` saves. Orchestrates the two binaries, normalizes paths, verifies output structure, and refuses to overwrite live game state without an explicit `--force`. The tool never modifies save contents — it owns only the decrypt → modify → encrypt boundary so callers can edit the decrypted `data.dat` in between.
 
 ## Build
 
@@ -54,53 +49,25 @@ editsave apply-tactics \
 
 ## Roundtrip semantics
 
-- **strict PASS**: ciphertext of the input equals the re-encryption.
-  Decrypter and encrypter are a perfect inverse pair on this input.
-- **content PASS**: decrypted `data.dat` of the input equals the decrypted
-  `data.dat` of the re-encryption. The save is functionally reconstructible
-  even if ciphertext drifts.
+- **strict PASS**: ciphertext of the input equals the re-encryption. Decrypter and encrypter are a perfect inverse pair on this input.
+- **content PASS**: decrypted `data.dat` of the input equals the decrypted `data.dat` of the re-encryption. The save is functionally reconstructible even if ciphertext drifts.
 
-Default exit policy: 0 iff content is PASS. On `BogambeDesktop` the wrapped
-tools are empirically a perfect inverse pair (strict is PASS), so the looser
-default exists for the case where a future tool revision drifts ciphertext;
-it is not the observed behavior today. Pass `--require-strict` for tighter
-scripted guarantees.
+Default exit policy: 0 iff content is PASS. The wrapped tools are empirically a perfect inverse pair (strict PASS on `BogambeDesktop`); the looser default only covers a future tool revision drifting ciphertext. Pass `--require-strict` for tighter scripted guarantees.
 
 ## Status streams
 
-All status and diagnostics go to stderr. stdout is reserved for future
-machine-readable output (none today).
+All status and diagnostics go to stderr. stdout is reserved for future machine-readable output (none today).
 
 ## apply-tactics format notes
 
-`.PES2021_tactics` files are 628 bytes. Byte 0..3 is `team_id` LE uint32;
-byte 4 is always `0x00`; bytes 5..6 encode the formation variant and
-vary per team (e.g. England `01 01`, Czech Republic `01 03`, Real Madrid
-`04 01`). The on-disk team-tactics section in `data.dat` is a contiguous
-array of 628-byte slots starting at the same byte layout. The section
-start was empirically `0x00a09880` on the FL26 v2.2 save and contained
-749 slots ending at `0x00a7c5e4`.
+`.PES2021_tactics` files are 628 bytes. Byte 0..3 is `team_id` LE uint32; byte 4 is always `0x00`; bytes 5..6 encode the formation variant and vary per team (e.g. England `01 01`, Czech Republic `01 03`, Real Madrid `04 01`). The on-disk team-tactics section in `data.dat` is a contiguous array of 628-byte slots starting at the same byte layout. The section start was empirically `0x00a09880` on the FL26 v2.2 save and contained 749 slots ending at `0x00a7c5e4`.
 
-The slot-finder anchors on the strict 3-byte pattern `00 01 01` (the FL26
-default at byte 6), then walks the section in 628-byte strides using only
-`byte[4] == 0x00` plus a plausible team_id, which keeps working after
-tactics imports have shifted byte 6 per team.
+The slot-finder anchors on the strict 3-byte pattern `00 01 01` (the FL26 default at byte 6), then walks the section in 628-byte strides using only `byte[4] == 0x00` plus a plausible team_id, which keeps working after tactics imports have shifted byte 6 per team.
 
-`id_list.txt` syntax: one `target_team_id, source_filename [# comment]`
-per line. Blank lines and `#` lines are ignored. The source filename's
-internal team_id may differ from the target — common when reusing
-tactics across PES versions where the same real team has a different
-internal id.
+`id_list.txt` syntax: one `target_team_id, source_filename [# comment]` per line. Blank lines and `#` lines are ignored. The source filename's internal team_id may differ from the target — common when reusing tactics across PES versions where the same real team has a different internal id.
 
 ## Safety
 
-- Refuses to overwrite an existing `--out` file (`encrypt`) or non-empty
-  `--out` directory (`decrypt`) without `--force`. The live FL26 save lives at
-  `C:\Program Files (x86)\SP Football Life 2026\dataSP\EDIT00000000`; the
-  refuse-overwrite default exists so a typo cannot destroy it.
-- All paths are normalized to absolute form before invoking the wrapped tools;
-  `decrypter21.exe` is a 2020-era 32-bit binary sensitive to relative paths and
-  trailing separators on Windows.
-- `verifyDecryptedDir` checks every expected file is present AND that
-  `data.dat` is non-empty, so a botched decrypt cannot pass into re-encryption
-  and destroy the save.
+- Refuses to overwrite an existing `--out` file (`encrypt`) or non-empty `--out` directory (`decrypt`) without `--force`, so a typo cannot destroy the live save.
+- All paths are normalized to absolute form before invoking the wrapped tools; `decrypter21.exe` is a 2020-era 32-bit binary sensitive to relative paths and trailing separators on Windows.
+- `verifyDecryptedDir` checks every expected file is present AND that `data.dat` is non-empty, so a botched decrypt cannot pass into re-encryption and destroy the save.

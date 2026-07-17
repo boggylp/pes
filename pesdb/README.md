@@ -43,25 +43,25 @@ Konami's pesdb files inside cpks are not encrypted — they're a thin envelope a
 
 After zlib decompression, the payload is a sequence of fixed-size player records. PES 2021's `Player.bin` uses a 312-byte stride from the start of the decompressed buffer:
 
-| Offset | Type | Field |
-|--------|------|-------|
-| `+0x08` | uint32 LE | Player ID |
+| Offset  | Type                  | Field       |
+| ------- | --------------------- | ----------- |
+| `+0x08` | uint32 LE             | Player ID   |
 | `+0x44` | UTF-8, 32 B, NUL-term | Player name |
-| `+0x81` | UTF-8, 16 B, NUL-term | Shirt name |
+| `+0x81` | UTF-8, 16 B, NUL-term | Shirt name  |
 
 Per-player stats sit between the ID and the name; this tool does not decode them.
 
 The PES 2021 EDIT save (`EDIT00000000`, decrypted with ejogc327's `decrypter21.exe`) uses the same 312-byte stride but a different field layout in `data.dat`:
 
-| Offset | Type | Field |
-|--------|------|-------|
-| `+0x0C` | uint32 LE | Player ID (also duplicated at `+0x10`) |
-| `+0x14` | uint16 LE | Country code |
-| `+0x42` | UTF-8, 32 B, NUL-term | Player name |
-| `+0x7F` | UTF-8, 16 B, NUL-term | Shirt name |
+| Offset  | Type                  | Field                                  |
+| ------- | --------------------- | -------------------------------------- |
+| `+0x0C` | uint32 LE             | Player ID (also duplicated at `+0x10`) |
+| `+0x14` | uint16 LE             | Country code                           |
+| `+0x42` | UTF-8, 32 B, NUL-term | Player name                            |
+| `+0x7F` | UTF-8, 16 B, NUL-term | Shirt name                             |
 
 Player records start at file offset 112 (80-byte file header + 32-byte section header). The section ends at the first slot whose ID is zero, sentinel (`0xFFFFFFFF` / `0xFFFF6000`), or where the duplicate-ID check fails — after that `data.dat` continues with team/stadium/coach sections in different formats.
 
 ## Why this exists
 
-Earlier the repo's `cpk` tool extracted zeros from these `Player.bin` entries because of an offset bug (fixed in commit `91875d8`). With the fix in place the extracted bytes look opaque if you only inspect the front 2 KB; the WESYS magic and zlib stream sit further into the file. This tool documents and automates the unwrap so future patch comparisons stay one command away.
+The extracted bytes look opaque if you only inspect the front 2 KB; the WESYS magic and zlib stream sit further into the file. This tool documents and automates the unwrap so patch comparisons stay one command away.

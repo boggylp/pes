@@ -1,6 +1,6 @@
 ---
 name: pes-gameplay-status
-description: '**Invoke this skill BEFORE answering any question about which gameplay, dt13/dt18, exe, sider modules, or livecpk roots are active on the live PES / Football Life install.** Covers `tools/fl-gameplay.ps1 status` (hashes `dt13_all.cpk`, `dt18_all.cpk`, `FL_2026.exe`, dumps Sider tracking comment, active gameplay-related sider entries, SYSTEM cache presence), hostname tagging (`BogambeDesktop` desktop / `DESKTOP-J0MDFMU` laptop), the inventory rule (always check the full gameplay stack: dt13, dt18, livecpk roots, lua.module entries, exe, hooks, cache), and the verify-against-hash convention. Triggers: "what gameplay is installed?", "which dt18 am I running?", "check the live install", "is the exe vanilla?", "status of FL26", any question that needs hash-level proof of what is loaded.'
+description: 'Invoke BEFORE answering any question about which gameplay, dt13/dt18, exe, sider modules, or livecpk roots are active on the live PES / Football Life install. Covers `tools/fl-gameplay.ps1 status`, hostname tagging, the full-stack inventory rule, and the verify-against-hash convention. Triggers: "what gameplay is installed?", "which dt18 am I running?", "check the live install", "is the exe vanilla?", any question that needs hash-level proof of what is loaded.'
 metadata:
   trusted_sources:
     - https://evoweb.uk/threads/soulsofkaos-unleashed-9-pes2013.101010/
@@ -21,31 +21,31 @@ The user's recurring entry point for any gameplay question: "what's running on t
 
 1. Run the helper:
 
-    ```powershell
-    pwsh -File .\tools\fl-gameplay.ps1 status
-    ```
+   ```powershell
+   pwsh -File .\tools\fl-gameplay.ps1 status
+   ```
 
-    Prints SHA-256 for `dt13_all.cpk`, `dt18_all.cpk`, `FL_2026.exe`; the `; gameplay:` tracking comment from `SiderAddons\sider.ini`; active `lua.module` and `cpk.root` entries that relate to gameplay; `SYSTEM00000000` cache presence.
+   Prints SHA-256 for `dt13_all.cpk`, `dt18_all.cpk`, `FL_2026.exe`; the `; gameplay:` tracking comment from `SiderAddons\sider.ini`; active `lua.module` and `cpk.root` entries that relate to gameplay; `SYSTEM00000000` cache presence.
 
 2. Capture hostname for any artefact that leaves this session:
 
-    ```powershell
-    hostname
-    ```
+   ```powershell
+   hostname
+   ```
 
-    Expected: `BogambeDesktop` (FL26 desktop) or `DESKTOP-J0MDFMU` (BPB laptop). Every AIKB log entry, every commit message, every diary entry must name the host.
+   Known machines: `BogambeDesktop` (desktop), `BogambeLegion5` (Legion 5 laptop, formerly `DESKTOP-J0MDFMU`). Every AIKB log entry, every commit message, every diary entry must name the host.
 
 3. Resolve hashes against `~/dev/priv/ai-knowledge-base/wiki/pes/gameplay-combos-fl26.md` (or `bpb-2026.md` for the laptop). The AIKB tables list known hashes per release; match by hash, not by filename.
 
 4. Inventory the **full gameplay stack** before drawing any conclusion:
 
-    - `Data/dt13_all.cpk` and `Data/dt18_all.cpk`
-    - `FL_2026.exe`
-    - `SiderAddons\sider.ini`: every `lua.module` entry tagged or commented as gameplay, every gameplay-related `cpk.root` entry
-    - Hook files, exe replacements
-    - `SYSTEM00000000` cache state
+   - `Data/dt13_all.cpk` and `Data/dt18_all.cpk`
+   - `FL_2026.exe`
+   - `SiderAddons\sider.ini`: every `lua.module` entry tagged or commented as gameplay, every gameplay-related `cpk.root` entry
+   - Hook files, exe replacements
+   - `SYSTEM00000000` cache state
 
-    Effective gameplay = what wins after load order, not just everything wired. State both when they diverge.
+   Effective gameplay = what wins after load order, not just everything wired. State both when they diverge.
 
 ## Pitfalls
 
@@ -54,7 +54,7 @@ The user's recurring entry point for any gameplay question: "what's running on t
 - **Anti-Cheat.lua is debunked.** Holland's `Anti-Cheat.lua` has no valid AOB addresses; use `Dynamic_Difficulty` instead.
 - **DT18 also unlocks animations**, not just DT13. alexfe87's DT18 is the animation source for that combo.
 - **Do not propose changes after a status check** unless the user explicitly approves the install/change step. Evidence-first only.
-- **Status checks are read-only.** Report `SYSTEM00000000` presence as a fact; never delete it and never propose deleting it. The user has no automated settings-reapply, so the suggestion is unwanted (suppressed until such a tool exists).
+- **Status checks are read-only.** Report `SYSTEM00000000` presence as a fact; its delete is hard-banned (repo `AGENTS.md`).
 
 ## Out of scope
 

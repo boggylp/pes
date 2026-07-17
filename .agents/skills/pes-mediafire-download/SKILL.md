@@ -1,6 +1,6 @@
 ---
 name: pes-mediafire-download
-description: '**Invoke this skill BEFORE downloading any MediaFire folder URL referenced in a pes / Football Life forum thread, mod README, or evoweb scraped post.** Covers `mdrs` (the `mediafire_rs` crate by NicKoehler) for bulk folder downloads, the `cargo install` setup, the retry flag for flaky links, and the split with Gopeed (single files) and yt-dlp (does not handle MediaFire at all). Triggers: a `mediafire.com/folder/` URL, "download this MediaFire folder", "grab this mod from MediaFire", any pes/FL mod link in evoweb data or forum threads where the destination is MediaFire.'
+description: 'Invoke BEFORE downloading any MediaFire folder URL referenced in a pes / Football Life forum thread, mod README, or evoweb scraped post. Covers `mdrs` (NicKoehler''s `mediafire_rs`) bulk folder downloads, the `cargo install` setup, the retry flag, and the split with Gopeed (single files). Triggers: a `mediafire.com/folder/` URL, "download this MediaFire folder", "grab this mod from MediaFire".'
 metadata:
   trusted_sources:
     - https://github.com/NicKoehler/mediafire_rs

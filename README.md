@@ -19,7 +19,7 @@ Repo-backed PowerShell helpers for recurring local workflows.
 
 ### Football Life gameplay helper
 
-`tools/fl-gameplay.ps1` provides a minimal workflow for live-install gameplay checks and vanilla switches.
+`tools/fl-gameplay.ps1` handles live-install gameplay checks and vanilla switches.
 
 Defaults:
 
@@ -80,9 +80,9 @@ Parameters:
 - `-KitType p|g` - player or goalkeeper (default `p`).
 - `-OutDir <path>` - destination folder (default: next to the input PNG).
 
-Output is a single embedded `<name>.ftex` file (FtexTool v0.4.0 `-f 0` mode) with full mipmap pyramid. Matches the format live kitserver folders already use. Drop it into the target kitserver slot folder. Kitserver folder scaffolding (`config.txt`, `order.ini`, `map.txt`) and partial-texture files (`_back`, `_leg`, `_name`) are out of scope.
+Output is a single embedded `<name>.ftex` (FtexTool v0.4.0 `-f 0` mode) with full mipmap pyramid, the format live kitserver folders use; drop it into the target kitserver slot folder. Kitserver folder scaffolding (`config.txt`, `order.ini`, `map.txt`) and partial-texture files (`_back`, `_leg`, `_name`) are out of scope.
 
-Caveat: produces DXT5 (FTEX PixelFormatType 4). Some stock kits use PixelFormatType 11 (unknown format, likely BC7). DXT5 is broadly compatible but may not exactly match the engine-preferred format for every kit slot; verify in-game.
+Caveat: produces DXT5 (FTEX PixelFormatType 4); some stock kits use PixelFormatType 11 (likely BC7). Verify in-game.
 
 ## evoweb
 
@@ -118,6 +118,9 @@ go run . forum --output data/forum.json --max-pages 3 "https://evoweb.uk/forums/
 
 # Manual cookie override (skips stored credentials)
 go run . scrape --output data/example.json --cookie "xf_session=abc; xf_user=def" "https://evoweb.uk/threads/example.88633/"
+
+# Download a login-walled attachment with the authenticated session
+go run . download --output dt18_all.cpk "https://evoweb.uk/attachments/dt18_all-cpk.432685/"
 ```
 
 ## faces
@@ -150,7 +153,7 @@ go run . map \
 go run . relink --folder /path/to/face/real/100219 --id 2147483648
 ```
 
-`map` and `relink` point a face folder at a new player ID. For an **equal-length** ID they swap the embedded `face/real/<id>/` path in place inside every `#Win/*.fpk` and `*.fpkd` package (the FL26 `face.fpkd` is an ID-less dependency stub, left intact; a separate package that embeds the path is handled). For a **length change** they leave the packages untouched and instead mirror the folder's `sourceimages` into a sibling folder named for the embedded ID, so the unchanged `face/real/<oldID>/sourceimages` texture path still resolves. The model binds by folder name, so it loads regardless; aliasing avoids corrupting the FMDL string table that a length-changing byte rewrite would shift.
+`map` and `relink` point a face folder at a new player ID. An **equal-length** ID is swapped in place inside every `#Win/*.fpk` and `*.fpkd` package (the FL26 `face.fpkd` is an ID-less dependency stub, left intact). A **length change** leaves packages untouched and mirrors the folder's `sourceimages` into a sibling folder named for the embedded ID, so the original texture path still resolves; a byte rewrite would corrupt the FMDL string table.
 
 ## pesdb
 
@@ -210,4 +213,4 @@ go build .
 ./cpk extract --out extracted/ Data/dt40_all.cpk
 ```
 
-See `cpk/README.md` for notes on where Player.bin lives and why BPB ships an empty one.
+See `cpk/README.md` for where Player.bin lives and the ContentOffset quirk of modern season packs.
