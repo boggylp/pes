@@ -43,7 +43,7 @@ function Get-GameplaySiderLines {
     $pattern = '(?i)(gameplay|sse|ai_tweaks|anti-cheat|speedserver2|attacking_mentality|attack_mentality|stamina|noscript|matchset|crow|anima)'
 
     Get-Content $SiderPath | Where-Object {
-        $_ -match '^(cpk\.root|lua\.module)\s*=' -and $_ -match $pattern
+        $_ -match '^\s*(cpk\.root|lua\.module)\s*=' -and $_ -match $pattern
     }
 }
 
