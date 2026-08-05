@@ -56,6 +56,7 @@ metadata:
 
 ## Boundaries
 
+- Treat the setup package and per-game runtime as separate. Uninstall a stale setup package only with user approval, then verify that the installed hook, configuration, shaders, and preset remain unchanged.
 - Treat startup and shader compilation as partial checks, not match-load verification.
 - Keep stadium light files and lookup-table roots unchanged during ReShade isolation.
 - Disable expensive effects first when frame time increases.
