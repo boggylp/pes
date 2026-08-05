@@ -18,7 +18,7 @@ metadata:
 
 2. Run `hostname` before creating a machine-specific record. Use the verified hostname in that record.
 
-3. Resolve each SHA-256 hash against the relevant AI Knowledge Base article under `wiki/pes/`.
+3. Resolve each SHA-256 hash against the relevant memory wiki article under `~/memory/priv/wiki/pes/`.
 
 4. Inventory the complete gameplay stack:
 

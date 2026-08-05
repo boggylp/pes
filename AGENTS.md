@@ -10,7 +10,7 @@ This repository contains independent PES tools and live-install workflows.
 - Ask `commit/push?` when `git status` contains tracked changes. Commit and push only after confirmation.
 - Use the install path that the user gives. Search elsewhere only when that path fails or the user asks.
 - Read the live install's `AGENTS.md` and `README.md` before a live-install task.
-- Use `pes-evoweb-research` for PES or Football Life community research. Check the AI Knowledge Base before external research.
+- Use `pes-evoweb-research` for PES or Football Life community research. Check the memory wiki before external research.
 - Use `pes-gameplay-status` before conclusions about active gameplay.
 - Identify gameplay files by hash, not by filename.
 - Get explicit approval for each gameplay or configuration change to a live install.

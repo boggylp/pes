@@ -38,7 +38,7 @@ description: 'Prepare or perform a live PES or Football Life gameplay-stack swit
 - Create an additional backup only when the user requests it. Store a requested gameplay backup under `%USERPROFILE%\MEGA\gaming\pes\gameplay\`.
 - Stop before an overwrite when the prior live file has no rollback source.
 - Follow the repository cache-safety rule.
-- Mark each contiguous manual `sider.ini` block with one `; [GB-CUSTOM]` line. Put state and history in the `; gameplay:` tracking line and the AI Knowledge Base.
+- Mark each contiguous manual `sider.ini` block with one `; [GB-CUSTOM]` line. Put state and history in the `; gameplay:` tracking line and the memory wiki.
 
 ## References
 
