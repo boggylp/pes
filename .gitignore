@@ -27,6 +27,9 @@ tools/bin/
 # Scraped data cache
 data/
 
+# Pi artifacts
+.pi-subagents/
+
 # Env
 .env
 
