@@ -58,7 +58,7 @@ func parseKitMap(path string) ([]kitMapEntry, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	var out []kitMapEntry
 	sc := bufio.NewScanner(f)
 	for sc.Scan() {
@@ -80,7 +80,7 @@ func configTextures(path string) (names []string, kitFile string, err error) {
 	if err != nil {
 		return nil, "", err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	sc := bufio.NewScanner(f)
 	for sc.Scan() {
 		m := texKeyRe.FindStringSubmatch(strings.TrimRight(sc.Text(), "\r"))
@@ -150,7 +150,7 @@ func cmdKits(args []string) {
 		fmt.Fprintf(os.Stderr, "open: %v\n", err)
 		os.Exit(1)
 	}
-	defer r.Close()
+	defer func() { _ = r.Close() }()
 
 	want := map[string]bool{}
 	for _, l := range leagues {

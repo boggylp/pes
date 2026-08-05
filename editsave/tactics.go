@@ -174,7 +174,7 @@ func parseIDList(path string) ([]tacticsListEntry, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	var entries []tacticsListEntry
 	scanner := bufio.NewScanner(f)

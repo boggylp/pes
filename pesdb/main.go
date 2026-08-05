@@ -152,7 +152,7 @@ func parsePlayerBin(path string) (map[uint32]player, error) {
 	if err != nil {
 		return nil, fmt.Errorf("zlib reader: %w", err)
 	}
-	defer zr.Close()
+	defer func() { _ = zr.Close() }()
 	plain, err := io.ReadAll(zr)
 	// PES pesdb zlib streams have no end-marker; an unexpected-EOF error
 	// after we have substantial output is normal — accept it as long as we
@@ -228,7 +228,7 @@ func writeCSV(path string, players map[uint32]player) error {
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	w := csv.NewWriter(f)
 	w.Comma = ';'
 	if err := w.Write([]string{"Id", "Name", "Shirt"}); err != nil {

@@ -51,7 +51,7 @@ func cmdList(args []string) {
 		fmt.Fprintf(os.Stderr, "open: %v\n", err)
 		os.Exit(1)
 	}
-	defer r.Close()
+	defer func() { _ = r.Close() }()
 
 	for _, f := range r.Files() {
 		if *long {
@@ -84,7 +84,7 @@ func cmdExtract(args []string) {
 		fmt.Fprintf(os.Stderr, "open: %v\n", err)
 		os.Exit(1)
 	}
-	defer r.Close()
+	defer func() { _ = r.Close() }()
 
 	if *inner != "" {
 		f, ok := r.FindFile(*inner)
