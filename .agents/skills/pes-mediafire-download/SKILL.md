@@ -1,83 +1,73 @@
 ---
 name: pes-mediafire-download
-description: 'Invoke BEFORE downloading any MediaFire folder URL referenced in a pes / Football Life forum thread, mod README, or evoweb scraped post. Covers `mdrs` (NicKoehler''s `mediafire_rs`) bulk folder downloads, the `cargo install` setup, the retry flag, and the split with Gopeed (single files). Triggers: a `mediafire.com/folder/` URL, "download this MediaFire folder", "grab this mod from MediaFire".'
+description: 'Download a PES or Football Life MediaFire folder with mdrs when the user provides a folder URL.'
 metadata:
   trusted_sources:
     - https://github.com/NicKoehler/mediafire_rs
     - https://crates.io/crates/mediafire_rs
 ---
 
-# PES MediaFire bulk download
+# PES MediaFire download
 
-PES / Football Life mods are routinely hosted on MediaFire as multi-file folders. `mdrs` is the only viable bulk downloader for those: yt-dlp does not support MediaFire, and Gopeed resolves single files only.
+## Setup
 
-## When to use
+1. Confirm that `mdrs` is available.
 
-- A forum post or evoweb scrape (e.g. `evoweb/data/*.json`) links to `mediafire.com/folder/...`.
-- A mod README ships a MediaFire folder for assets, dt files, faces, kits, etc.
-- The user pastes a MediaFire folder URL.
+   ```sh
+   where.exe mdrs
+   ```
 
-For a `mediafire.com/file/...` single-file URL, use Gopeed or a direct browser download instead. `mdrs` accepts single files too, but for one file it is overkill.
+2. When it is absent, get approval before installing a Rust toolchain or package. Then install and verify it.
 
-## Setup (one-shot, per machine)
+   ```sh
+   cargo install mediafire_rs
+   where.exe mdrs
+   ```
 
-```sh
-cargo install mediafire_rs
-where.exe mdrs   # confirms `~/.cargo/bin/mdrs.exe` (or equivalent) is on PATH
-```
+## Steps
 
-Build prerequisites: a working Rust toolchain (`rustup` or scoop `rust`). Compile time: ~2 min on a warm cargo cache.
+1. Use this workflow for `mediafire.com/folder/` URLs. Route a single-file URL to the selected single-file downloader.
 
-If the user does not have Rust installed and does not want it, stop and ask before installing the toolchain.
+2. Select an absolute output directory. Use a new or empty directory when possible.
 
-## Usage
+3. For a populated output directory, list the files that can be replaced and get explicit approval.
 
-```sh
-mdrs -o <output-dir> --tries 3 <mediafire-folder-url>
-```
+4. Download with three retries per file.
 
-Flags (verified from upstream README):
+   ```sh
+   mdrs --tries 3 -o <output-dir> <mediafire-folder-url>
+   ```
 
-| Flag | Default | Purpose |
+5. Reduce concurrency when the service rate-limits requests.
+
+   ```sh
+   mdrs --tries 3 --max 3 -o <output-dir> <mediafire-folder-url>
+   ```
+
+6. Verify file count and total size against the forum post or mod README.
+
+7. Preserve the download until the installed mod passes verification.
+
+## Options
+
+| Flag | Default | Effect |
 | --- | --- | --- |
-| `-o, --output <DIR>` | `.` | Output directory. Pass an absolute path; `mdrs` creates it if missing. |
-| `-m, --max <N>` | `10` | Concurrent downloads. Lower to 3-5 if MediaFire rate-limits. |
-| `-t, --tries <N>` | `1` | Retries per file. **Always pass `--tries 3`**, MediaFire 503s are routine. |
-| `-r, --reverse` | off | Largest files first. Useful when total size matters more than file count. |
-| `-p, --proxy <FILE>` | none | Proxy list, one per line. For API-only by default. |
-| `--proxy-download` | off | Route file downloads through the proxies too, not just metadata calls. |
+| `-o, --output <DIR>` | `.` | Select the output directory. |
+| `-m, --max <N>` | `10` | Set concurrent downloads. |
+| `-t, --tries <N>` | `1` | Set retries per file. Use `3` for this workflow. |
+| `-r, --reverse` | off | Download the largest files first. |
+| `-p, --proxy <FILE>` | none | Use a proxy list for API calls. |
+| `--proxy-download` | off | Use proxies for file downloads. |
 
-### Common patterns
+## Review
 
-Download a mod folder to the canonical pes asset staging dir:
+- Quote Windows paths that contain spaces.
+- A restarted run downloads interrupted files again from the start.
+- `mdrs` can replace same-named files without a prompt.
+- Use the authenticated browser profile when MediaFire presents a login or interstitial page.
 
-```sh
-mdrs --tries 3 \
-     -o "$USERPROFILE/MEGA/gaming/pes/<modtype>/<mod-name>" \
-     "https://www.mediafire.com/folder/<id>/<name>"
-```
+## Boundaries
 
-The pes `AGENTS.md` names `%USERPROFILE%\MEGA\gaming\pes\gameplay\` as the canonical gameplay archive root. Use a parallel subdir (`faces`, `kits`, `dt18`, etc.) for non-gameplay mods. Confirm the destination with the user before starting a large download.
-
-Quick scratch download (small, exploratory):
-
-```sh
-mdrs --tries 3 -o ~/tmp/mdrs-<short-name> "<url>"
-```
-
-## Pitfalls
-
-- **MediaFire 503s are random.** Without `--tries`, one transient failure aborts that file. Always pass `--tries 3` at minimum.
-- **No resume.** A killed `mdrs` run restarts each in-flight file from zero. For huge folders, prefer letting it complete or split the URL list.
-- **Folder URL vs file URL.** `mediafire.com/folder/<id>` works. `mediafire.com/file/<id>` is a single file; mdrs handles it but Gopeed is the lighter tool.
-- **Paths with spaces.** Always quote `-o` paths on Windows (`"$USERPROFILE/MEGA/..."`), `mdrs` does not re-quote them internally.
-- **Output dir already populated.** `mdrs` overwrites without prompting. If re-downloading, the prior copy is gone the moment a same-named file lands.
-- **Login walls.** MediaFire occasionally throws an interstitial for very large folders. `mdrs` cannot solve that; fall back to a logged-in browser via the playwright skill's persistent-profile mode.
-- **Never `rm` the download** before verifying contents in-game. Mirrors pes-faces-install rollback discipline.
-
-## After download
-
-- Verify file count and size against the forum post / mod README before any install step.
-- For gameplay mods: follow pes-gameplay-switch for the actual install.
-- For faces: route the extracted folder through pes-faces-install.
-- Log non-obvious findings (working URL for a mod, hash of the canonical archive) in the AIKB via pes-aikb-log.
+- Use `pes-gameplay-switch` to install gameplay files.
+- Use `pes-faces-install` to install faces.
+- Use `pes-aikb-log` to record durable source URLs or archive hashes.

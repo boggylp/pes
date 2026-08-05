@@ -1,32 +1,30 @@
 # PES
 
-Pro Evolution Soccer / SP Football Life related utilities.
+Utilities for Pro Evolution Soccer and SP Football Life.
 
 ## Structure
 
-```text
-cpk/        CRI Middleware CPK archive reader + kitserver pack assembler (Go)
-evoweb/     XenForo forum scraper (Go)
-faces/      Player face mapping and mismatch detection (Go)
-pesdb/      PES 2021 player roster extractor (Go)
-uniparam/   UniColor.bin / UniformParameter.bin editor: extend a team's kit-slot count (Go)
-tools/      Local Windows helpers for PES and Football Life workflows
+| Path | Purpose |
+| --- | --- |
+| `cpk/` | Read and extract CPK files. Assemble self-contained kitserver packs. |
+| `editsave/` | Decrypt, edit, encrypt, and verify EDIT saves. |
+| `evoweb/` | Scrape XenForo threads and download authenticated attachments. |
+| `faces/` | Map player faces and detect ID mismatches. |
+| `pesdb/` | Extract player rosters from `Player.bin` and decrypted EDIT data. |
+| `uniparam/` | Add kit slots to uniform databases. |
+| `tools/` | Run local PowerShell workflows. |
+
+Build a Go tool from its directory:
+
+```sh
+go build .
 ```
 
-## tools
+## Tools
 
-Repo-backed PowerShell helpers for recurring local workflows.
+### Football Life gameplay
 
-### Football Life gameplay helper
-
-`tools/fl-gameplay.ps1` handles live-install gameplay checks and vanilla switches.
-
-Defaults:
-
-- Game root: `%ProgramFiles(x86)%\SP Football Life 2026`
-- Gameplay backup root: `%USERPROFILE%\MEGA\gaming\pes\gameplay`
-
-Usage:
+`tools/fl-gameplay.ps1` checks the active gameplay stack and restores selected vanilla dt13 or dt18 sources.
 
 ```powershell
 pwsh -File .\tools\fl-gameplay.ps1 status
@@ -34,183 +32,85 @@ pwsh -File .\tools\fl-gameplay.ps1 switch-dt13-vanilla
 pwsh -File .\tools\fl-gameplay.ps1 switch-dt18-vanilla
 ```
 
-What it does:
+The default game root is `%ProgramFiles(x86)%\SP Football Life 2026`. The default gameplay archive root is `%USERPROFILE%\MEGA\gaming\pes\gameplay`.
 
-- `status` prints hashes for live `dt13`, `dt18`, and `FL_2026.exe`, the tracking comments from `SiderAddons\sider.ini`, active gameplay-related sider entries, and `SYSTEM` cache presence.
-- `switch-dt13-vanilla` backs up the current live `dt13`, restores the vanilla `dt13` from the canonical gameplay backup root, and updates the `sider.ini` tracking comment.
-- `switch-dt18-vanilla` does the same for `dt18`.
+- `status` prints SHA-256 hashes, gameplay tracking lines, active gameplay-related Sider entries, and save-cache presence.
+- A switch command saves the current live file under `<GameRoot>\.backup\Data\`.
+- A switch command restores the vanilla file and updates the gameplay tracking line.
+- The helper prefers loose files under the `vanilla\` archive directory. It can fall back to `dt13 & dt18 vanilla.rar`.
+- The helper reports save-cache state but does not change it.
 
-`SYSTEM00000000` cache invalidation is intentionally never performed by this tool; the user handles it manually.
+### Kit PNG to FTEX
 
-The helper prefers loose files under `%USERPROFILE%\MEGA\gaming\pes\gameplay\vanilla\` and falls back to the `dt13 & dt18 vanilla.rar` archive when needed.
+`tools/kit-to-ftex.ps1` converts a PNG to a kitserver-compatible FTEX. It converts the PNG to DXT5 DDS with ImageMagick and then converts DDS to FTEX with FtexTool.
 
-### Kit PNG to FTEX converter
+Prerequisite: ImageMagick `magick` on `PATH`.
 
-`tools/kit-to-ftex.ps1` converts a kit PNG (e.g. exported from pesmaster.com/kit-creator) to a PES `.ftex` usable by kitserver.
-
-Pipeline: PNG -> DDS (DXT5, via ImageMagick) -> FTEX (via Atvaark's FtexTool).
-
-Prerequisite in `PATH`: `magick` (ImageMagick).
-
-FtexTool (Atvaark's v0.3.3) is auto-fetched on first run into `tools/bin/FtexTool-v0.3.3/` (gitignored).
-
-Usage:
+FtexTool v0.4.0 downloads on first use to `tools/bin/FtexTool-v0.4.0/`, which Git ignores.
 
 ```powershell
-# Plain conversion, output next to input
 pwsh -File .\tools\kit-to-ftex.ps1 path\to\kit.png
-
-# Explicit output path
 pwsh -File .\tools\kit-to-ftex.ps1 path\to\kit.png path\to\out\u.ftex
-
-# Kitserver naming by team ID + slot -> u<id>p<slot>.ftex
 pwsh -File .\tools\kit-to-ftex.ps1 path\to\kit.png -TeamId 2525 -Slot 3
-
-# Team name lookup (FL26_teams.txt from the Football Life 2026 install root)
 pwsh -File .\tools\kit-to-ftex.ps1 path\to\kit.png -TeamName Hajduk -Slot 3 -OutDir out\
-
-# Goalkeeper kit (-KitType g)
 pwsh -File .\tools\kit-to-ftex.ps1 path\to\kit.png -TeamId 2525 -KitType g -Slot 1
 ```
 
-Parameters:
+| Parameter | Effect |
+| --- | --- |
+| `-TeamId <int>` | Name the output `u<id><p|g><slot>.ftex`. |
+| `-TeamName <text>` | Find the team with a substring match in the team list. |
+| `-TeamsFile <path>` | Select another team list. |
+| `-Slot <1-9>` | Select the kit slot. The default is `1`. |
+| `-KitType p\|g` | Select a player or goalkeeper kit. The default is `p`. |
+| `-OutDir <path>` | Select the output directory. The default is the input directory. |
 
-- `-TeamId <int>` or `-TeamName <string>` - triggers kitserver naming `u<id><p|g><slot>.ftex`. Team name does a substring match in `FL26_teams.txt` (default path: `%ProgramFiles(x86)%\SP Football Life 2026\FL26_teams.txt`; override with `-TeamsFile`).
-- `-Slot <1-9>` - kit slot number (default `1`).
-- `-KitType p|g` - player or goalkeeper (default `p`).
-- `-OutDir <path>` - destination folder (default: next to the input PNG).
+The output contains one embedded DXT5 FTEX with mipmaps. Put it in an existing kitserver slot folder. The tool does not create `config.txt`, `order.ini`, `map.txt`, or partial textures. Some stock textures use a different pixel format, so verify the result in the game.
 
-Output is a single embedded `<name>.ftex` (FtexTool v0.4.0 `-f 0` mode) with full mipmap pyramid, the format live kitserver folders use; drop it into the target kitserver slot folder. Kitserver folder scaffolding (`config.txt`, `order.ini`, `map.txt`) and partial-texture files (`_back`, `_leg`, `_name`) are out of scope.
+## Evoweb
 
-Caveat: produces DXT5 (FTEX PixelFormatType 4); some stock kits use PixelFormatType 11 (likely BC7). Verify in-game.
-
-## evoweb
-
-Scrapes threads and forum listings from XenForo-based forums (e.g. evoweb.uk). Outputs structured JSON.
-
-### Build
+The `evoweb` tool stores credentials, scrapes XenForo threads and forum listings, and downloads authenticated files.
 
 ```sh
 cd evoweb
 go build .
-```
-
-### Usage
-
-```sh
-# Save evoweb.uk credentials (one-time setup, stored at ~/.secrets/evoweb/credentials)
 go run . login
-
-# Scrape a thread (auto-logs in with stored credentials)
 go run . scrape --output data/example.json "https://evoweb.uk/threads/example.88633/"
-
-# Limit pages
 go run . scrape --output data/example.json --max-pages 3 "https://evoweb.uk/threads/example.88633/"
-
-# Scrape only the last N pages of a thread
 go run . scrape --output data/example.json --last-pages 5 "https://evoweb.uk/threads/example.88633/"
-
-# List threads from a forum (default: 1 page)
-go run . forum --output data/forum.json "https://evoweb.uk/forums/pes-2021.337/"
-
-# List threads from multiple pages
-go run . forum --output data/forum.json --max-pages 3 "https://evoweb.uk/forums/pes-2021.337/"
-
-# Manual cookie override (skips stored credentials)
 go run . scrape --output data/example.json --cookie "xf_session=abc; xf_user=def" "https://evoweb.uk/threads/example.88633/"
-
-# Download a login-walled attachment with the authenticated session
+go run . forum --output data/forum.json --max-pages 3 "https://evoweb.uk/forums/pes-2021.337/"
 go run . download --output dt18_all.cpk "https://evoweb.uk/attachments/dt18_all-cpk.432685/"
 ```
 
-## faces
+The login command stores credentials under `~/.secrets/evoweb/credentials`. Scrape and forum commands use the stored session. Use `--cookie` only to diagnose stored-session problems.
 
-Player face mapping and mismatch detection for PES/Football Life. Matches player names across CSV exports and copies face asset directories.
+## Faces
 
-### Build
+The `faces` tool maps face folders between player databases and detects invalid folders.
 
 ```sh
 cd faces
 go build .
-```
 
-### Usage
+./faces detect \
+  --faces-dir "/path/to/livecpk/Asset/model/character/face/real" \
+  --player-csv "/path/to/player-ids.csv"
 
-```sh
-# Detect mismatched/orphaned faces in livecpk folder
-go run . detect \
-  --faces-dir "/path/to/livecpk/.../face/real" \
-  --player-csv "/path/to/UML 2026 - Player IDs.csv"
-
-# Map faces between game versions
-go run . map \
-  --source-csv samples/BPB-2023-players.csv \
-  --destination-csv samples/FL26_players.csv \
+./faces map \
+  --source-csv /path/to/source-players.csv \
+  --destination-csv /path/to/destination-players.csv \
   --source-folder /path/to/source/faces \
   --dest-folder /path/to/destination/faces
 
-# Point a single face folder at a new player ID
-go run . relink --folder /path/to/face/real/100219 --id 2147483648
+./faces relink --folder /path/to/face/real/100219 --id 2147483648
 ```
 
-`map` and `relink` point a face folder at a new player ID. An **equal-length** ID is swapped in place inside every `#Win/*.fpk` and `*.fpkd` package (the FL26 `face.fpkd` is an ID-less dependency stub, left intact). A **length change** leaves packages untouched and mirrors the folder's `sourceimages` into a sibling folder named for the embedded ID, so the original texture path still resolves; a byte rewrite would corrupt the FMDL string table.
+For equal-length IDs, `map` and `relink` replace the embedded decimal ID in each package. For different-length IDs, they keep package bytes unchanged and create a texture alias under the embedded ID.
 
-## pesdb
+## Tool documentation
 
-PES 2021 player roster extractor. Reads a `Player.bin` extracted from a cpk and emits an `Id;Name;Shirt` CSV. Optionally merges a decrypted EDIT save's `data.dat`.
-
-### Build
-
-```sh
-cd pesdb
-go build .
-```
-
-### Usage
-
-```sh
-# 1. Extract Player.bin from the game's cpk (see cpk section below)
-./cpk/cpk extract --file common/etc/pesdb/Player.bin \
-  --out /tmp/Player.bin \
-  "/d/SteamLibrary/steamapps/common/eFootball PES 2021/Data/dt10_x64.cpk"
-
-# 2. Optional: decrypt the EDIT save (ejogc327's decrypter21.exe)
-"/d/apps/Pes 2020 Editor V0.12.10 by Ejogc327/Lib/decrypter21.exe" \
-  "$USERPROFILE/Documents/KONAMI/eFootball PES 2021 SEASON UPDATE/2026/save/EDIT00000000" \
-  /tmp/edit-out
-
-# 3. Build the roster CSV (base only, then base + EDIT-save adds merged)
-./pesdb/pesdb roster --player-bin /tmp/Player.bin --out roster.csv
-./pesdb/pesdb roster --player-bin /tmp/Player.bin --edit /tmp/edit-out/data.dat --out roster.csv
-```
-
-See `pesdb/README.md` for the pesdb container format and record layout details.
-
-## cpk
-
-Reads the CRI Middleware CPK archive format (the `Data/dt*_*.cpk` files used by PES, Football Life, and BPB). Lists the table of contents and extracts files individually by inner path or in bulk. Falls back to CRILAYLA decompression when needed; PES 2017–2021 cpks usually store payloads uncompressed.
-
-### Build
-
-```sh
-cd cpk
-go build .
-```
-
-### Usage
-
-```sh
-# Print the table of contents
-./cpk list "/d/SteamLibrary/steamapps/common/eFootball PES 2021/Data/dt40_all.cpk"
-
-# Long listing with offsets and sizes
-./cpk list -l Data/dt40_all.cpk
-
-# Extract one file by inner path
-./cpk extract --file common/etc/pesdb/Player.bin --out Player.bin Data/dt00_x64.cpk
-
-# Extract everything to a directory
-./cpk extract --out extracted/ Data/dt40_all.cpk
-```
-
-See `cpk/README.md` for where Player.bin lives and the ContentOffset quirk of modern season packs.
+- [CPK reader and kitserver-pack assembly](cpk/README.md)
+- [EDIT-save operations](editsave/README.md)
+- [Player roster extraction](pesdb/README.md)
+- [Uniform kit-slot editing](uniparam/README.md)

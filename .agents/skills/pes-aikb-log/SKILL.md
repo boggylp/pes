@@ -1,54 +1,36 @@
 ---
 name: pes-aikb-log
-description: 'Invoke BEFORE writing or updating a PES / Football Life article in the AI Knowledge Base at `~/dev/priv/ai-knowledge-base/wiki/pes/`. Covers article routing, the mandatory hostname tag on playtest / verdict entries, the AIKB house style, and the closing commit+push. Triggers: "log this to the KB", "save the verdict", "update the AIKB", "/obsidian-kb …" for PES content.'
-metadata:
-  trusted_sources:
-    - https://keepachangelog.com/en/1.1.0/
+description: 'Write or update a PES or Football Life AI Knowledge Base article when the user asks to record a durable finding.'
 ---
 
 # PES AI Knowledge Base log
 
-The final step of most PES sessions: write durable findings into `wiki/pes/`. Hostname-tagged, dated, concise.
-
-## When to use
-
-- After a playtest the user wants recorded
-- After pes-evoweb-research surfaces a fact worth keeping
-- After pes-gameplay-status captures a noteworthy live install state
-- When the user says any variant of "log this to the KB" / "save to obsidian-kb" / "diary it" with PES content
-
 ## Steps
 
-1. **Pick the right article.** Match by topic, not by date.
+1. Select the article by topic.
 
    | Article | Scope |
    | --- | --- |
-   | `wiki/pes/gameplay-combos-fl26.md` | FL26 desktop install gameplay combos and verdicts |
-   | `wiki/pes/bpb-2026.md` | BPB install (the `BogambeLegion5` laptop) |
-   | `wiki/pes/livecpk-face-management.md` | Faces, livecpk, face install workflow |
-   | `wiki/pes/evoweb-credibility-signals.md` | Author / mod reputation signals from evoweb |
-   | `wiki/pes/ai-tweaks-twiggy.md` | Twiggy / AI-tweaks specific findings |
-   | `wiki/pes/soccer-revolution-revamped.md` | Soccer Revolution patch |
-   | `wiki/pes/simsnob-experience.md` | SimSnob mod experience |
-   | `wiki/pes/multi-monitor-lag-gaming.md` | Multi-monitor stutter / gaming display issues |
+   | `wiki/pes/gameplay-combos-fl26.md` | Football Life 2026 gameplay combinations and verdicts |
+   | `wiki/pes/bpb-2026.md` | BPB install state |
+   | `wiki/pes/livecpk-face-management.md` | Faces and livecpk workflows |
+   | `wiki/pes/evoweb-credibility-signals.md` | Evoweb author and mod evidence |
+   | `wiki/pes/ai-tweaks-twiggy.md` | AI Tweaks findings |
+   | `wiki/pes/soccer-revolution-revamped.md` | Soccer Revolution |
+   | `wiki/pes/simsnob-experience.md` | SimSnob |
+   | `wiki/pes/multi-monitor-lag-gaming.md` | Display-related stutter |
 
-   If no article fits, create a new one with a kebab-case filename.
+   Create a kebab-case article when no existing article fits.
 
-2. **Tag every machine-specific entry with the hostname**, verified via `hostname`, never inferred. Known machines: `BogambeDesktop` (desktop), `BogambeLegion5` (Legion 5 laptop, formerly `DESKTOP-J0MDFMU`). Example:
+2. Run `hostname`. Add the verified hostname to each machine-specific heading.
 
-   ```markdown
-   ## User's best combo verdict (2026-05-20, `BogambeDesktop`)
-   ```
+3. Lead with the conclusion. Give concise evidence in short bullets. Mark an unverified hypothesis once with `**Not verified**`.
 
-   Never write "this desktop" or "the laptop" without the hostname.
+4. Cite gameplay files by hash. Run `pes-gameplay-status` when the required hashes are missing.
 
-3. **Match the AIKB house style.** Lead with the conclusion, then evidence. Tight bullets and short factual sentences over prose. Mark hypotheses **once** with `**Not verified**` and move on; do not hedge again. No multi-paragraph qualifications, no redundant restatements. See repo `AGENTS.md` "AIKB notes are concise and punctual".
+5. Link related articles with Obsidian wikilinks.
 
-4. **Cite hashes, not filenames** for any gameplay claim. Run pes-gameplay-status first if hashes are not yet in hand.
-
-5. **Cross-link related articles** using the vault's Obsidian wikilink syntax. The pkb is an Obsidian vault; backlinks make it navigable.
-
-6. **Commit and push the vault** when the entry is durable:
+6. Ask `commit/push?` after the entry is complete. On confirmation, commit and push only the changed article.
 
    ```sh
    cd ~/dev/priv/ai-knowledge-base
@@ -57,18 +39,15 @@ The final step of most PES sessions: write durable findings into `wiki/pes/`. Ho
    git push
    ```
 
-   The vault commits use the same `🤖:` prefix as code commits (see global `AGENTS.md` "AI-output format").
+## Review
 
-## Pitfalls
+- Keep prior dated verdicts. Edit a historical entry in place when it is wrong.
+- Quote one necessary sentence from an Evoweb post and include its URL.
+- Replace marketing claims with the tested state, hashes, host, and verdict.
+- Report the changed article path without status narration.
 
-- **No hostname = entry is wrong.** Two machines feed this vault. An untagged playtest verdict is unfalsifiable across machines.
-- **No status theater.** Drop "I have updated the AIKB", "I will now log this". Name the file edited and stop.
-- **No marketing in the wiki.** "Best ever", "revolutionary", "always" are wrong even when the user is excited. Write what was tested, on what hashes, with what verdict.
-- **Quote evoweb posts surgically.** Single sentence plus URL, never multi-paragraph copy.
-- **Do not delete a prior verdict to replace it.** Edit in place; the historical entry (with its date and hostname) is the audit trail.
+## Boundaries
 
-## Out of scope
-
-- Running the status check that produces the verdict: see pes-gameplay-status.
-- Scraping evoweb for the facts being logged: see pes-evoweb-research.
-- Anything in the database/ side of the vault. This skill is wiki-only.
+- Use `pes-gameplay-status` to collect live gameplay evidence.
+- Use `pes-evoweb-research` to collect Evoweb evidence.
+- Write only under `wiki/pes/`.

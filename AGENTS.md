@@ -2,106 +2,90 @@
 
 @README.md
 
-## Repo-specific
+## Rules
 
-- Monorepo; independent tools per subdir, own language/build.
-- Before every commit, run `make all` in the changed subdir.
-- Tracked changes in `git status` → ask `commit/push?`; commit+push on confirm.
-- PES/Football Life mod questions: check AIKB (`~/dev/priv/ai-knowledge-base/wiki/pes/`) first; what's-new questions always rescrape the forum listing + active threads before answering, other questions rescrape when data is >1 week old. Update AIKB when findings worth preserving.
-- AIKB house style: lead with conclusion, tight bullets, short factual sentences, mark hypotheses **Not verified** once.
-- Live-install task → read the live install's game-root `AGENTS.md` + `README.md` first.
-- Canonical gameplay backup root: `%USERPROFILE%\MEGA\gaming\pes\gameplay\`; EDIT/SYSTEM saves under `%USERPROFILE%\MEGA\gaming\pes\edit\saves\`.
-- Save/EDIT/SYSTEM backup filenames must embed the FL26 version, machine, and date: `fl26-<savetype>_fl26-<version>_<machine>_<YYYY-MM-DD>`. Version = patch name + exe FileVersion (e.g. `v2.2-26.2.0.3`).
-- User-given install path is authoritative; don't search wider unless it fails or they ask.
-- Evidence-first: verify active files (`SiderAddons\sider.ini`, `Data\dt13/dt18`, backups, archive/thread instructions) before proposing any reset/install.
-- Identify installed gameplay by file hash, not filename.
-- alexfe87: `dt18_v4` = May 2026 DT18 release; `GamePlay-v2.lua` = the separate required Lua module.
-- No gameplay/config change to a live install without explicit user approval of the change step.
-- Before any switch, inventory the full stack (dt13, dt18, gameplay livecpk roots, gameplay `lua.module` entries, exe, hooks, cache); verify each from evidence or mod instructions. A file named like an animation/visual addon counts as gameplay if a mod readme bundles it.
-- No partial switch leaving a mixed state unless the user asked for that exact mix.
-- **`SYSTEM00000000` deletion: never propose, mention, or perform it** until an automated clear-cache + reapply-all-settings tool exists. A delete wipes the settings cache + recent-match state, and the user has no automated way to reapply settings.
-- `tools/fl-gameplay.ps1` for recurring status checks and vanilla dt13/dt18 switches.
-- Query `evoweb/data/` JSON with `duckdb`.
-- evoweb downloads: hrefs never land in scrape JSON (link text only; attachment blocks skipped). Extract the href with an authenticated browser (`tool-playwright` + evoweb profile), then fetch attachment URLs (`/attachments/<name>.<id>/`) with `evoweb download --output <file> <url>`; the Go login session passes the Cloudflare wall that blocks `xh`/`WebFetch`.
-- Elevation: spawn elevated `pwsh` from the session, don't stop. `Start-Process (Get-Command pwsh.exe).Source -Verb RunAs -Wait -ArgumentList @('-NoProfile','-ExecutionPolicy','Bypass','-File',<script>)`.
-- Sider config reference (sections, `lua.module`, livecpk roots, cache): [SOK Unleashed v9](https://evoweb.uk/threads/soulsofkaos-unleashed-9-pes2013.101010/). Sider 7 Lua scripting API (events, `ctx.register`): [docs](https://mapote.com/doc/sider/sider7/scripting.html) — check before judging whether a `lua.module` runs.
+This repository contains independent PES tools and live-install workflows.
 
-## Tools
-
-Build each with `go build .` in its subdir. Usage in @README.md; operational detail in the `pes-*` skills. Subdirs: `evoweb` (XenForo scraper; always `--output data/<name>.json`), `cpk` (CPK reader/extractor + `cpk kits` kitserver-pack assembler), `pesdb` (roster extractor; EDIT saves need ejogc327's `decrypter21.exe`), `faces` (map/detect), `uniparam` (UniColor.bin/UniformParameter.bin editor; extend a team's kit-slot count via livecpk), `tools/` (PowerShell helpers).
-
-Gotchas beyond README:
-
-- Player base `common/etc/pesdb/Player.bin` in `Data/dt00_x64.cpk`; `dt10_x64.cpk` + `download/dt80_*E_x64.cpk` override by load order. Not encrypted: `\xff\x10\x81WESYS` + zlib. BPB ships a real Player.bin (1,751,422 B, md5 `89938c15`) in dt00=dt10; EDIT save adds 20 BPB customs.
-- pesdb stride 312 B. Player.bin: Id `+0x08`, name `+0x44`, shirt `+0x81`. EDIT `data.dat`: Id `+0x0C`, name `+0x42`, shirt `+0x7F`, records from offset 112.
-- **Authoritative roster = the live DB, not `FL26_players.txt`.** UML (or any DB patch) replaces `Player.bin` via livecpk (`SiderAddons\livecpk\UML_Database\...\Player.bin`) and renumbers players (Beljo base `91287` vs UML `58035`), so the stale base export keys faces to wrong/dead IDs. Before face/ID work: use the install's provided list (`UML 2026 - Player IDs.csv`, `... - Team IDs.csv`) or extract the live `UML_Database` `Player.bin` with `pesdb`; verify Beljo's ID.
-- Nationality byte = `+0x1D` (BPB `Player.bin`; UML team `Country` uses a different scheme). Balkan: Croatia 144, Serbia 94, Bosnia 140, Montenegro 97 (132 = Austria), N.Macedonia 186, Slovenia 214, Albania 126, Kosovo 110.
-- The model binds to a player by the **face folder name** (the player ID); textures load from the `face/real/<id>/sourceimages` path embedded in the FMDL. A face renders default when the model fails to load; red/grey skin on a loaded model means the embedded texture path does not resolve. Equal-length ID change: byte-replace the embedded decimal ID in place. Length-changing ID (created-player `0x80000000`+ = 10 digits, or any digit-count change): **never byte-rewrite the FMDL** — the texture path sits in a packed string blob behind an offset table, so a length change shifts every following string off-by-delta and the skin renders red/grey (verified failure, BogambeDesktop 2026-06-20). Alias instead: keep the package pointing at `face/real/<oldID>/sourceimages` and mirror `sourceimages` into a sibling folder named `<oldID>`. `faces relink`/`map` do this automatically and refuse to overwrite a sibling that is itself a real face folder.
-- `faces map`/`relink` walk **every** `#Win/*.fpk` and `*.fpkd` package for an equal-length swap (covers a separate oral/hair package). The FL26 `face.fpkd` is a 48-byte ID-less `foxfpkd` dependency stub (distinct magic; `parseFpk` rejects it) — carried intact by the folder copy, no rewrite. A length change touches no package (texture aliasing instead), so it is format-agnostic across foxfpk and foxfpkd.
-- `faces map` matches exact normalized name, then a relaxed first+last fallback (surname exact + compatible first name, middle names ignored, collisions rejected), so BPB `Dion Drena Beljo` maps to live `Dion Beljo`.
-- `faces/samples/` CSVs lag the install; never use them for an install.
-- Mark manual `sider.ini` edits with one `; [GB-CUSTOM]` line per contiguous block (provenance tag, so patch reinstalls don't clobber them). Add words only for a constraint the lines can't say (e.g. ordering); versions, dates, hosts, rationale, and history live in the `; gameplay:` tracking line and AIKB, never in markers.
+- Run `make all` in each changed tool directory before a commit.
+- Ask `commit/push?` when `git status` contains tracked changes. Commit and push only after confirmation.
+- Use the install path that the user gives. Search elsewhere only when that path fails or the user asks.
+- Read the live install's `AGENTS.md` and `README.md` before a live-install task.
+- Use `pes-evoweb-research` for PES or Football Life community research. Check the AI Knowledge Base before external research.
+- Use `pes-gameplay-status` before conclusions about active gameplay.
+- Identify gameplay files by hash, not by filename.
+- Get explicit approval for each gameplay or configuration change to a live install.
+- Inventory the full gameplay stack before a switch. Include dt13, dt18, gameplay livecpk roots, gameplay `lua.module` entries, the executable, hooks, and cache state.
+- Verify each gameplay-stack component from active files or the mod instructions.
+- Apply the complete requested gameplay stack. Do not leave an unrequested mixed state.
+- Never propose, mention, or perform deletion of `SYSTEM00000000` until an automated clear-cache and settings-reapply tool exists.
+- Store gameplay archives under `%USERPROFILE%\MEGA\gaming\pes\gameplay\`.
+- Store EDIT-save and SYSTEM-cache backups under `%USERPROFILE%\MEGA\gaming\pes\edit\saves\`.
+- Name save backups `fl26-<savetype>_fl26-<version>_<machine>_<YYYY-MM-DD>`. Build `<version>` from the patch name and executable `FileVersion`.
+- Use the active live database for player and face work. Do not use the sample CSV files for a live install.
+- Use texture aliasing when source and destination player IDs have different lengths. Do not byte-rewrite the FMDL path.
 
 ## Domain language
 
-### Archives and game data
+These terms define the repository's recurring vocabulary.
+
+### Archives
 
 | Term | Definition | Aliases to avoid | Notes |
 | --- | --- | --- | --- |
-| **CPK** | A CRI Middleware archive used by PES and Football Life to package game data. | archive file |  |
-| **EDIT save** | The encrypted user save that carries custom adds and edits on top of the archive Player.bin baseline. | edit file, option file | Do not treat it as parseable by the repo CPK tool. |
-| **Inner path** | The path of a file inside a CPK archive. | internal path, archive path | Matching is case-insensitive and slash-normalized in the repo tool. |
-| **Load order** | The order in which base archives, patch archives, DLC archives, livecpk roots, and Sider modules override earlier game data. | priority, precedence | State the scope when discussing it. |
-| **Player.bin** | Konami's binary player database stored inside PES archive data, packaged as a WESYS+zlib envelope. | player DB, players file | BPB and FL26 ship distinct Player.bin bytes; EDIT save carries custom adds on top. Decode with the repo's `pesdb` tool. |
-| **Table of contents** | The parsed CPK entry list used to list and extract archived files. | TOC |  |
+| **CPK** | A CRI Middleware package that contains PES game data. | archive file | |
+| **EDIT save** | The encrypted user save that adds custom data and edits to the archive roster. | edit file, option file | The CPK tool does not parse it. |
+| **Inner path** | The normalized path of a file inside a CPK. | internal path, archive path | Matching ignores case and slash direction. |
+| **Load order** | The order in which archives, livecpk roots, and Sider modules override game data. | priority, precedence | State the applicable scope. |
+| **Player.bin** | Konami's WESYS and zlib player database. | player DB, players file | Decode it with `pesdb`. |
+| **Table of contents** | The parsed list of entries in a CPK. | TOC | |
 
 ### Faces
 
 | Term | Definition | Aliases to avoid | Notes |
 | --- | --- | --- | --- |
-| **Face folder** | A numeric player-ID directory containing the face assets loaded by the game. | player folder, ID folder |  |
-| **Face install** | Copying or remapping a face folder into the live install's configured face root. | face import | Requires a rollback record. |
-| **FPK** | A PES package file inside a face folder that embeds asset paths and the referenced player ID. | face.fpk | Length-sensitive path data makes naive ID replacement unsafe. |
-| **Length mismatch** | A source and destination player ID pair whose decimal string lengths differ. | digit mismatch | Requires an FPK-aware editor, not forced install. |
-| **Orphaned face** | A face folder whose ID does not exist in the active player database. | orphan |  |
-| **Player ID** | The numeric identifier that links player database rows to face folders and embedded FPK paths. | face ID |  |
+| **Face folder** | A numeric player-ID directory that contains face assets. | player folder, ID folder | |
+| **Face install** | Copying or remapping a face folder into the configured livecpk face root. | face import | Record how to roll it back. |
+| **FPK** | A PES package in a face folder that contains asset paths and a player ID. | face.fpk | A length-changing ID rewrite can corrupt path offsets. |
+| **Length mismatch** | A source and destination player-ID pair with different decimal lengths. | digit mismatch | Use texture aliasing. |
+| **Orphaned face** | A face folder whose ID is absent from the active player database. | orphan | |
+| **Player ID** | The numeric key that links player records, face folders, and FPK paths. | face ID | |
 
-### Gameplay and live install
+### Gameplay
 
 | Term | Definition | Aliases to avoid | Notes |
 | --- | --- | --- | --- |
-| **dt13** | The gameplay-related CPK component commonly changed by gameplay patches. | dt13 file | Verify by hash before identifying it. |
-| **dt18** | The gameplay-related CPK component commonly changed by gameplay patches. | dt18 file | Verify by hash before identifying it. |
-| **Effective gameplay** | The gameplay behavior that should win after applying load order, not merely every gameplay-related component installed or wired. | installed combo | State both when they differ. |
-| **EXE mod** | A modded `FL_2026.exe` / `PES2021.exe` carrying hardcoded gameplay changes, ranging from a multi-MB fork to a few-byte binary patch. | exe patch, modded exe | Identify by hash, never by label. A label can be wrong (SHA256 `9EE0C306` is vanilla FL26 26.2.0.3, not the "Holland WE2026" it was filed as; real Holland = `19740A3C`, vanilla +17 bytes). |
-| **Gameplay stack** | The full set of files, livecpk roots, Sider modules, executable replacements, hooks, and caches affecting gameplay. | gameplay mod, gameplay files | Inventory the whole stack before switching. |
-| **Live install** | The actual PES or Football Life installation currently used for play and verification. | game folder, install path | The user-provided path wins over search. |
-| **SYSTEM cache** | The PES save cache that can preserve gameplay or settings state across file switches, and which holds a fingerprint of the EDIT save. A stale fingerprint after replacing EDIT00000000 triggers a "create edit data" prompt that wipes the new save. | system file, cache | Removal is destructive (loses settings cache, recent-match state). Never propose or perform a delete; suppressed until an automated clear+reapply-settings tool exists. |
-| **Vanilla** | A known clean baseline copy of a component from the active game or patch. | default, original | For BPB, vanilla means BPB stock unless explicitly qualified as Konami vanilla. Prefer hash evidence over filename claims. |
+| **dt13** | A CPK component that gameplay patches can replace. | dt13 file | Identify it by hash. |
+| **dt18** | A CPK component that gameplay patches can replace. | dt18 file | Identify it by hash. |
+| **Effective gameplay** | The gameplay behavior that wins after load order is applied. | installed combo | Distinguish it from all wired components. |
+| **EXE mod** | A modified game executable that contains gameplay changes. | exe patch, modded exe | Identify it by hash. |
+| **Gameplay stack** | All files, livecpk roots, Sider modules, executable changes, hooks, and caches that can affect gameplay. | gameplay mod, gameplay files | |
+| **Live install** | The PES or Football Life installation used for play and verification. | game folder, install path | The user-provided path is authoritative. |
+| **SYSTEM cache** | The PES save cache that stores settings, recent-match state, and an EDIT-save fingerprint. | system file, cache | Removal is destructive. |
+| **Vanilla** | A verified clean baseline for the active game or patch. | default, original | Qualify Konami and patch baselines when they differ. |
 
 ### Kits
 
 | Term | Definition | Aliases to avoid | Notes |
 | --- | --- | --- | --- |
-| **FTEX** | The PES texture container format used by kitserver for kit textures. | ftex file | The converter emits single embedded FTEX files. |
-| **Kit slot** | The numbered player or goalkeeper kit variant selected by kitserver naming. | slot | Valid slot values are tool-specific. |
-| **Kitserver** | The Sider-based kit loading system that maps teams and kit slots to texture folders. | kit loader | Folder scaffolding is separate from texture conversion. |
-| **Pixel format** | The texture compression format stored inside an FTEX. | format | DXT5 is broad compatibility, not necessarily stock-equivalent. |
+| **FTEX** | The PES texture container used by kitserver. | ftex file | |
+| **Kit slot** | A numbered player or goalkeeper kit variant. | slot | Valid values depend on the tool. |
+| **Kitserver** | The Sider system that maps teams and kit slots to texture folders. | kit loader | Folder configuration is separate from texture conversion. |
+| **Pixel format** | The texture-compression format stored in an FTEX. | format | DXT5 is compatible but not always stock-equivalent. |
 
-### Sider and mod loading
-
-| Term | Definition | Aliases to avoid | Notes |
-| --- | --- | --- | --- |
-| **cpk.root entry** | A Sider config entry that adds a livecpk root to the game data override chain. | cpk root, livecpk entry |  |
-| **livecpk root** | A loose-file directory that Sider presents to the game as overrideable CPK content. | livecpk folder |  |
-| **lua.module entry** | A Sider config entry that loads a Lua module into the game process. | Lua module, module entry | Treat bundled gameplay modules as part of the gameplay stack. Loaded is not running: a module that never registers a real Sider event via `ctx.register` is dead code (e.g. Holland's `Difficulty_Manager.lua`). |
-| **Sider** | The PES mod loader that injects modules and loose-file roots into the running game. | sider.ini | `sider.ini` is the config file, not the loader. |
-
-### Web research
+### Sider
 
 | Term | Definition | Aliases to avoid | Notes |
 | --- | --- | --- | --- |
-| **AI Knowledge Base** | The private PES research wiki checked before answering mod and community-content questions. | AIKB | Update it when findings are worth preserving. |
-| **Evoweb scrape** | A persisted JSON capture of an Evoweb thread or forum listing. | scrape data, scraped JSON | Must be refreshed when stale for the question. |
-| **Forum listing** | A XenForo forum index page used to discover thread URLs and metadata. | forum page |  |
-| **Thread** | A XenForo discussion page scraped as posts and metadata. | topic |  |
+| **cpk.root entry** | A Sider setting that adds a livecpk root to game-data load order. | cpk root, livecpk entry | |
+| **livecpk root** | A loose-file directory that Sider presents as CPK data. | livecpk folder | |
+| **lua.module entry** | A Sider setting that loads a Lua module into the game process. | Lua module, module entry | Loaded code runs only when it registers a Sider event. |
+| **Sider** | The mod loader that injects modules and loose-file roots. | sider.ini | `sider.ini` is its configuration file. |
+
+### Research
+
+| Term | Definition | Aliases to avoid | Notes |
+| --- | --- | --- | --- |
+| **AI Knowledge Base** | The private PES research wiki used before external research. | AIKB | Preserve durable findings there. |
+| **Evoweb scrape** | A dated JSON capture of an Evoweb thread or forum listing. | scrape data, scraped JSON | Refresh it when the question requires current state. |
+| **Forum listing** | A XenForo index used to discover threads and metadata. | forum page | |
+| **Thread** | A XenForo discussion and its posts. | topic | |

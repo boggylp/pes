@@ -1,6 +1,6 @@
 ---
 name: pes-roster-extract
-description: 'Invoke BEFORE extracting a player roster from a PES / Football Life / BPB install, comparing rosters across versions, or answering which players ship in a given CPK. Covers `cpk extract` of `Player.bin`, optional `decrypter21.exe` against `EDIT00000000`, `pesdb roster` CSV output, CPK load order, and the WESYS+zlib envelope. Triggers: "extract the player DB", "get the roster from this cpk", "what players ship in BPB?", "compare BPB and FL26 rosters".'
+description: 'Extract or compare a PES or Football Life player roster when the answer requires Player.bin or EDIT-save evidence.'
 metadata:
   trusted_sources:
     - https://github.com/cri-mw/cpk
@@ -8,104 +8,64 @@ metadata:
 
 # PES roster extract
 
-Reads `Player.bin` out of a CPK, optionally merges custom adds from a decrypted EDIT save, emits a CSV. Pesdb files are zlib-wrapped, not encrypted.
-
-## When to use
-
-- Cross-version roster comparison (BPB vs FL26)
-- Validating face mappings against the actual shipped roster (precondition for pes-faces-install)
-- Answering "is player X in this cpk?" with evidence
-- Generating the CSV used by the `faces` tool
-
 ## Steps
 
-1. **Identify the CPK that owns the effective `Player.bin`.** Load order:
+1. Identify the effective `Player.bin`.
 
-   | CPK                             | Role                |
-   | ------------------------------- | ------------------- |
-   | `Data/dt00_x64.cpk`             | Base                |
-   | `Data/dt10_x64.cpk`             | Overrides `dt00`    |
-   | `Data/download/dt80_*E_x64.cpk` | DLC, overrides both |
+   - Check active livecpk roots first. Use a livecpk `Player.bin` when it overrides the archive path.
+   - Otherwise, inspect CPK load order. Check `Data/download/dt80_*E_x64.cpk`, then `Data/dt10_x64.cpk`, then `Data/dt00_x64.cpk`.
 
-   The highest-priority CPK that contains `common/etc/pesdb/Player.bin` is the one in use. BPB 2026 ships an identical 1,751,422-byte `Player.bin` in both `dt00` and `dt10` (md5 `89938c15...`); FL26 ships its own distinct bytes.
-
-2. **Extract `Player.bin`** with the repo's `cpk` tool:
+2. When no livecpk override exists, extract the highest-priority CPK entry.
 
    ```sh
-   cd cpk && go build .
+   cd cpk
+   go build .
    ./cpk extract \
      --file common/etc/pesdb/Player.bin \
      --out /tmp/Player.bin \
-     "$INSTALL/Data/dt10_x64.cpk"   # $INSTALL = the target PES/FL install root (BPB lives in the Steam PES 2021 dir, not FL26); varies per machine
+     "$INSTALL/Data/dt10_x64.cpk"
    ```
 
-   Inner-path matching is case-insensitive and slash-agnostic.
+3. Verify that the extracted file contains the `\xff\x10\x81WESYS` magic.
 
-3. **(Optional) decrypt the EDIT save** for custom adds. The repo `cpk` tool does **not** parse EDIT saves; use ejogc327's `decrypter21.exe`:
+4. To include EDIT-save additions, decrypt the live EDIT save with the configured `decrypter21.exe`. Use the resulting `data.dat` only as input.
 
-   ```sh
-   "/d/apps/Pes 2020 Editor V0.12.10 by Ejogc327/Lib/decrypter21.exe" \
-     "$USERPROFILE/Documents/KONAMI/eFootball PES 2021 SEASON UPDATE/2026/save/EDIT00000000" \
-     /tmp/edit-out
-   ```
-
-   Produces `data.dat` containing the custom-adds records. BPB ships 20 BPB-specific custom adds on top of the archive baseline.
-
-4. **Build the CSV** with `pesdb`:
+5. Build the roster CSV.
 
    ```sh
-   cd pesdb && go build .
-   # Base only
+   cd pesdb
+   go build .
    ./pesdb roster --player-bin /tmp/Player.bin --out /tmp/roster.csv
-   # Base + EDIT save adds merged
    ./pesdb roster --player-bin /tmp/Player.bin --edit /tmp/edit-out/data.dat --out /tmp/roster.csv
    ```
 
-   Output is `Id;Name;Shirt` ready for the `faces` tool.
+   The output columns are `Id;Name;Shirt`.
 
-5. **Verify** the row count against the expected roster size. BPB 2026 with the 20 custom adds gives a known total; FL26 a different known total. A wildly off count usually means the wrong CPK was extracted.
+6. Verify the row count and inspect known players from the target install. A large mismatch usually indicates the wrong source or load order.
 
-## Record layout (for verification)
+7. For a comparison, generate each CSV from its own effective source and compare normalized IDs and names.
 
-Pesdb files are a `\xff\x10\x81WESYS` magic (at byte 0) + 8-byte size header + zlib stream. After decompression, records are 312 bytes:
+## Record layout
 
-| Source          | Offset  | Field              |
-| --------------- | ------- | ------------------ |
-| `Player.bin`    | `+0x08` | Id                 |
-| `Player.bin`    | `+0x1D` | Nationality (byte) |
-| `Player.bin`    | `+0x44` | Name               |
-| `Player.bin`    | `+0x81` | Shirt              |
-| EDIT `data.dat` | `+0x0C` | Id                 |
-| EDIT `data.dat` | `+0x42` | Name               |
-| EDIT `data.dat` | `+0x7F` | Shirt              |
+The WESYS envelope contains a zlib stream. Decompressed player records use a 312-byte stride.
 
-EDIT records start at file offset 112. Nationality byte (`+0x1D`) is not in `pesdb` output; read it directly. Balkan codes: Croatia 144, Serbia 94, Bosnia 140, Montenegro 97, N.Macedonia 186, Slovenia 214, Albania 126, Kosovo 110 (132 = Austria). EDIT `data.dat` holds only edited/created players, not the full base roster.
+| Source | ID | Name | Shirt |
+| --- | --- | --- | --- |
+| `Player.bin` | `+0x08` | `+0x44` | `+0x81` |
+| EDIT `data.dat` | `+0x0C` | `+0x42` | `+0x7F` |
 
-## Pitfalls
+EDIT player records start at offset 112. The EDIT data contains edited or created players, not the complete base roster.
 
-- **Player.bin is not encrypted.** It is plain WESYS+zlib from byte 0; earlier "encrypted" / "zero-filled" / "opaque front" claims all traced to the ContentOffset extraction bug (fixed 2026-06-07, section below).
-- **Pick the right CPK.** Running `extract` against `dt00` when `dt10` overrides it gives the base roster, not the effective one. Verify with pes-gameplay-status which CPK actually exists in `Data/`.
-- **BPB and FL26 are distinct.** Their `Player.bin` files differ. Do not assume a roster CSV from one is valid against the other; regenerate per install.
-- **The live roster is the patched DB, not the base CPK.** When UML (or any DB patch) is installed, the effective `Player.bin` is the livecpk one (`SiderAddons\livecpk\UML_Database\common\etc\pesdb\Player.bin`), which renumbers some players vs the base CPK / `FL26_players.txt`. For face/ID work, extract that one (or use the install's provided `UML 2026 - Player IDs.csv`). Confirm a known renumbered player (Beljo base `91287` vs UML `58035`).
-- **EDIT save decryption is third-party.** `decrypter21.exe` is the only known working decrypter; if it's not available, the EDIT-save adds cannot be merged and the CSV is base-only.
-- **The repo's `cpk` tool falls back to CRILAYLA decompression but PES 2017-2021 cpks usually store uncompressed.** A "compression unknown" error usually means the inner path is wrong, not that the file is encrypted.
+## Review
 
-## cpk extraction ContentOffset bug (FIXED 2026-06-07)
+- Use the effective live database for face and player-ID work.
+- Generate a roster for each install. Do not reuse a roster from another patch.
+- Treat the archive roster as incomplete when an active livecpk database overrides it.
+- State when EDIT additions could not be merged.
+- Treat a missing WESYS magic as an extraction or source error.
 
-A `reader.go` bug silently corrupted extracted face packs. `load()` reused one `rowReader` for two `readNamedNumber` calls (`TocOffset` then `ContentOffset`); that walker advances the row pointer across every column, so the second read started past the row end and returned garbage. The bogus ContentOffset (a huge value, then forced down to TocOffset by the `tocOffset < contentOffset` clamp) fed the absolute-offset rebase, so every file was read one `Align` block (2048 B) too early — a 2 KB garbage prefix plus a 2048 B tail truncation.
+## Boundaries
 
-Symptom: extracted `face.fpk` had `foxfpk` at offset 2048 instead of 0 → **crashes the game** on load. `Player.bin` survived only because `pesdb` searches for the WESYS magic and tolerated the junk prefix.
-
-Fix: use a fresh `headerTable.row(0)` per `readNamedNumber`. Verified on `BogambeDesktop`: fa26_bpb `17003` → `foxfpk@0` size-correct; dt10 `Player.bin` → WESYS@0, 24981 rows.
-
-Quick post-extract sanity check (no python; first 6 bytes of a face must be the magic):
-
-```sh
-head -c6 "<dir>/#Win/face.fpk"   # must print: foxfpk
-```
-
-## Out of scope
-
-- Editing player records: the `pesdb` tool is read-only.
-- Installing faces against the resulting CSV: see pes-faces-install.
-- Decrypting the EDIT save itself; that needs `decrypter21.exe` from ejogc327.
+- The `pesdb` tool is read-only.
+- Use `pes-faces-install` to install faces from the CSV.
+- Use `editsave/README.md` for EDIT-save decryption and encryption.
