@@ -63,7 +63,7 @@ description: 'Install, map, or audit player faces for a live Football Life 2026 
 - Preserve the source archives until in-game verification passes.
 - Treat a textures-only alias folder as part of its mapped face.
 - Keep existing Sider configuration unchanged when the configured face root is already active.
-- Use `pes-aikb-log` for a durable machine-specific result.
+- Use `pes-wiki-log` for a durable machine-specific result.
 
 ## Boundaries
 

@@ -45,5 +45,5 @@ metadata:
 ## Boundaries
 
 - Use `pes-gameplay-switch` for a gameplay change.
-- Use `pes-aikb-log` to record a verdict.
+- Use `pes-wiki-log` to record a verdict.
 - Keep Sider configuration unchanged during a status check.

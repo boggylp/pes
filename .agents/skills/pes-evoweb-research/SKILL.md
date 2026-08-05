@@ -10,7 +10,7 @@ metadata:
 
 ## Steps
 
-1. Search `~/dev/priv/ai-knowledge-base/wiki/pes/` for an existing answer.
+1. Search `~/memory/priv/wiki/pes/` for an existing answer.
 
 2. Check the date of the relevant files under `evoweb/data/`. Rescrape the forum listing and active threads for a what-is-new question. Rescrape other data when it is more than one week old.
 
@@ -41,7 +41,7 @@ metadata:
 
 7. Cite the thread URL, post date, and author in the answer.
 
-8. Use `pes-aikb-log` when the finding is durable.
+8. Use `pes-wiki-log` when the finding is durable.
 
 ## Review
 
@@ -54,4 +54,4 @@ metadata:
 
 - Use `pes-gameplay-status` for live-install state.
 - Use `pes-gameplay-switch` for a gameplay change.
-- Use `pes-aikb-log` to write the durable finding.
+- Use `pes-wiki-log` to write the durable finding.

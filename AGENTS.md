@@ -85,7 +85,7 @@ These terms define the repository's recurring vocabulary.
 
 | Term | Definition | Aliases to avoid | Notes |
 | --- | --- | --- | --- |
-| **AI Knowledge Base** | The private PES research wiki used before external research. | AIKB | Preserve durable findings there. |
+| **Memory wiki** | The PES article set at `~/memory/priv/wiki/pes/`, searched before external research. | AIKB, AI Knowledge Base | Preserve durable findings there through `pes-wiki-log`. |
 | **Evoweb scrape** | A dated JSON capture of an Evoweb thread or forum listing. | scrape data, scraped JSON | Refresh it when the question requires current state. |
 | **Forum listing** | A XenForo index used to discover threads and metadata. | forum page | |
 | **Thread** | A XenForo discussion and its posts. | topic | |

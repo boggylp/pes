@@ -49,4 +49,4 @@ description: 'Prepare or perform a live PES or Football Life gameplay-stack swit
 
 - Use `pes-gameplay-status` to read current state.
 - Use `pes-evoweb-research` to assess a release.
-- Use `pes-aikb-log` to record a playtest verdict.
+- Use `pes-wiki-log` to record a playtest verdict.

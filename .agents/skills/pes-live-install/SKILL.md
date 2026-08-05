@@ -62,4 +62,4 @@ metadata:
 - Use `pes-faces-install` for face folders.
 - Use `pes-roster-extract` for roster extraction.
 - Use `pes-evoweb-research` to assess a release.
-- Use `pes-aikb-log` to record a verdict.
+- Use `pes-wiki-log` to record a verdict.

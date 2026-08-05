@@ -70,4 +70,4 @@ metadata:
 
 - Use `pes-gameplay-switch` to install gameplay files.
 - Use `pes-faces-install` to install faces.
-- Use `pes-aikb-log` to record durable source URLs or archive hashes.
+- Use `pes-wiki-log` to record durable source URLs or archive hashes.
