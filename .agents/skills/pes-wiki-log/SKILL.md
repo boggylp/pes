@@ -34,14 +34,7 @@ Articles live at `~/memory/priv/wiki/pes/`. The universal `mem-wiki` skill owns 
 
 5. Link related articles with Obsidian wikilinks.
 
-6. Ask `commit/push?` after the entry is complete. On confirmation, commit and push only the changed article.
-
-   ```sh
-   cd ~/MEGA/home/pkb
-   git add memory/priv/wiki/pes/<file>.md
-   git commit -m "🤖: Log <subject> from <hostname>"
-   git push
-   ```
+6. End after article validation and the Obsidian link.
 
 ## Review
 
