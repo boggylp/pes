@@ -83,7 +83,7 @@ pwsh -File .\tools\kit-to-ftex.ps1 path\to\kit.png -TeamId 2525 -KitType g -Slot
 
 | Parameter | Effect |
 | --- | --- |
-| `-TeamId <int>` | Name the output `u<id><p|g><slot>.ftex`. |
+| `-TeamId <int>` | Name the output `u<id><p\|g><slot>.ftex`. |
 | `-TeamName <text>` | Find the team with a substring match in the team list. |
 | `-TeamsFile <path>` | Select another team list. |
 | `-Slot <1-9>` | Select the kit slot. The default is `1`. |
