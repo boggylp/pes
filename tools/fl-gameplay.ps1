@@ -4,7 +4,7 @@ param(
     [ValidateSet('status', 'switch-dt13-vanilla', 'switch-dt18-vanilla')]
     [string]$Action = 'status',
 
-    [string]$GameRoot = 'D:\Games\SP Football Life 2026',
+    [string]$GameRoot = $(if ($env:PES_GAME_ROOT) { $env:PES_GAME_ROOT } else { Join-Path ${env:ProgramFiles(x86)} 'SP Football Life 2026' }),
 
     [string]$GameplayRoot = (Join-Path $env:USERPROFILE 'MEGA\gaming\pes\gameplay'),
 

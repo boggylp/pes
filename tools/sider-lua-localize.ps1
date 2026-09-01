@@ -4,7 +4,7 @@ param(
     [ValidateSet('report', 'apply', 'restore')]
     [string]$Action = 'report',
 
-    [string]$SiderAddons = 'D:\Games\SP Football Life 2026\SiderAddons',
+    [string]$SiderAddons = $(if ($env:PES_GAME_ROOT) { Join-Path $env:PES_GAME_ROOT 'SiderAddons' } else { Join-Path ${env:ProgramFiles(x86)} 'SP Football Life 2026\SiderAddons' }),
 
     [switch]$AllGlobals,
 
