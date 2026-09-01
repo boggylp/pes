@@ -54,10 +54,12 @@ These terms define the repository's recurring vocabulary.
 
 | Term | Definition | Aliases to avoid | Notes |
 | --- | --- | --- | --- |
-| **dt13** | A CPK component that gameplay patches can replace. | dt13 file | Identify it by hash. |
-| **dt18** | A CPK component that gameplay patches can replace. | dt18 file | Identify it by hash. |
+| **dt13** | The CPK component that carries animations and player-behavior data, replaceable by gameplay patches. | dt13 file | Identify it by hash. |
+| **dt18** | The CPK component that carries core gameplay parameters: the 9 `common/match/constant/*.bin` for ball physics, AI, passing, and shooting. | dt18 file, constant files | Identify it by hash. |
 | **Effective gameplay** | The gameplay behavior that wins after load order is applied. | installed combo | Distinguish it from all wired components. |
 | **EXE mod** | A modified game executable that contains gameplay changes. | exe patch, modded exe | Identify it by hash. |
+| **FL26** | SP Football Life 2026, the PES 2021 patch the live installs run. | Football Life 26, SPFL 2026 | |
+| **FUMA** | The full-manual control setting that removes pass and shot assistance. | full manual | |
 | **Gameplay stack** | All files, livecpk roots, Sider modules, executable changes, hooks, and caches that can affect gameplay. | gameplay mod, gameplay files | |
 | **Live install** | The PES or Football Life installation used for play and verification. | game folder, install path | The user-provided path is authoritative. |
 | **SYSTEM cache** | The PES save cache that stores settings, recent-match state, and an EDIT-save fingerprint. | system file, cache | Removal is destructive. |
