@@ -32,7 +32,7 @@ pwsh -File .\tools\fl-gameplay.ps1 switch-dt13-vanilla
 pwsh -File .\tools\fl-gameplay.ps1 switch-dt18-vanilla
 ```
 
-The default game root is `%ProgramFiles(x86)%\SP Football Life 2026`. The default gameplay archive root is `%USERPROFILE%\MEGA\gaming\pes\gameplay`.
+The default game root is `D:\Games\SP Football Life 2026`. The default gameplay archive root is `%USERPROFILE%\MEGA\gaming\pes\gameplay`.
 
 - `status` prints SHA-256 hashes, gameplay tracking lines, active gameplay-related Sider entries, and save-cache presence.
 - A switch command saves the current live file under `<GameRoot>\.backup\Data\`.
@@ -59,7 +59,7 @@ pwsh -File .\tools\sider-lua-localize.ps1 apply -AllGlobals
 | `report` | List each module, the names to localize, and the names skipped. Changes nothing. |
 | `apply` | Insert a `local` declaration block at file scope in each offending module. |
 | `restore` | Copy every `.pre-localize.bak` back and remove the backup. |
-| `-SiderAddons <path>` | Select the install. The default is `%ProgramFiles(x86)%\SP Football Life 2026\SiderAddons`. |
+| `-SiderAddons <path>` | Select the install. The default is `D:\Games\SP Football Life 2026\SiderAddons`. |
 | `-AllGlobals` | Localize every module-owned global, not only the shared ones. |
 | `-Force` | Localize a name another loaded module reads. |
 
