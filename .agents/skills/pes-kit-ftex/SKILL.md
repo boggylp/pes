@@ -52,4 +52,4 @@ metadata:
 - Use `pes-kit-extract` to extract or migrate existing kits from a CPK.
 - This skill creates one DXT5 FTEX texture.
 - It does not create slot configuration or partial textures such as `_back`, `_leg`, or `_name`.
-- Use `pes-faces-install` for player faces.
+- Use `pes-faces-set` for player faces.

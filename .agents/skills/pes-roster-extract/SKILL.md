@@ -67,5 +67,5 @@ EDIT player records start at offset 112. The EDIT data contains edited or create
 ## Boundaries
 
 - The `pesdb` tool is read-only.
-- Use `pes-faces-install` to install faces from the CSV.
+- Use `pes-faces-set` to install faces from the CSV.
 - Use `editsave/README.md` for EDIT-save decryption and encryption.

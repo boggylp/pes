@@ -53,5 +53,5 @@ metadata:
 ## Boundaries
 
 - Use `pes-gameplay-status` for live-install state.
-- Use `pes-gameplay-switch` for a gameplay change.
+- Use `pes-gameplay-set` for a gameplay change.
 - Use `pes-wiki-log` to write the durable finding.

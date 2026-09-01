@@ -34,7 +34,7 @@ metadata:
 
 9. For a custom player, import the complete player record with the configured EDIT-save editor. Include attributes, physical data, traits, name, and kit data.
 
-10. Use `pes-roster-extract` and `pes-faces-install` when the operation also changes player IDs or face folders.
+10. Use `pes-roster-extract` and `pes-faces-set` when the operation also changes player IDs or face folders.
 
 11. Apply required Windows settings. Keep Hardware-accelerated GPU scheduling off.
 
@@ -58,8 +58,8 @@ metadata:
 
 ## Boundaries
 
-- Use `pes-gameplay-switch` for a gameplay-only switch.
-- Use `pes-faces-install` for face folders.
+- Use `pes-gameplay-set` for a gameplay-only change.
+- Use `pes-faces-set` for face folders.
 - Use `pes-roster-extract` for roster extraction.
 - Use `pes-evoweb-research` to assess a release.
 - Use `pes-wiki-log` to record a verdict.

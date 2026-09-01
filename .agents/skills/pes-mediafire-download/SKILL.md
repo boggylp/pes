@@ -68,6 +68,6 @@ metadata:
 
 ## Boundaries
 
-- Use `pes-gameplay-switch` to install gameplay files.
-- Use `pes-faces-install` to install faces.
+- Use `pes-gameplay-set` to install gameplay files.
+- Use `pes-faces-set` to install faces.
 - Use `pes-wiki-log` to record durable source URLs or archive hashes.

@@ -7,7 +7,6 @@
 This repository contains independent PES tools and live-install workflows.
 
 - Run `make all` in each changed tool directory before a commit.
-- Ask `commit/push?` when `git status` contains tracked changes. Commit and push only after confirmation.
 - When restructuring documentation, preserve game and domain knowledge in its current owner or move it to another durable owner.
 - Use the install path that the user gives. Search elsewhere only when that path fails or the user asks.
 - Read the live install's `AGENTS.md` and `README.md` before a live-install task.
