@@ -126,7 +126,7 @@ function Get-EffectiveSummary {
         }
     }
 
-    "all 9 bins from $($sources[0]) ($release), $dt18Desc masked"
+    "all 9 bins from $($sources[0]) ($release)"
 }
 
 function Get-TrackingLines {
@@ -259,10 +259,10 @@ function Show-Status {
     ) | Format-Table -AutoSize
 
     Write-Host ''
-    Write-Host 'Effective constant bins (first cpk.root wins, then dt18_all.cpk):'
+    Write-Host 'Constant bins by Sider load order (first cpk.root, then dt18_all.cpk):'
     $bins = @(Get-EffectiveBins -SiderPath $siderPath -Dt18Hash8 $dt18Hash.Substring(0, 8))
     $bins | Format-Table -AutoSize
-    Write-Host ('Effective gameplay: ' + (Get-EffectiveSummary -Bins $bins -Dt18Hash8 $dt18Hash.Substring(0, 8)))
+    Write-Host ('Constant bins: ' + (Get-EffectiveSummary -Bins $bins -Dt18Hash8 $dt18Hash.Substring(0, 8)))
 
     Write-Host ''
     Write-Host 'Tracking comments:'

@@ -35,7 +35,7 @@ pwsh -File .\tools\fl-gameplay.ps1 switch-dt18-vanilla
 The default game root is `%PES_GAME_ROOT%` when that machine-level variable is set, otherwise `%ProgramFiles(x86)%\SP Football Life 2026`. The default gameplay archive root is `%USERPROFILE%\MEGA\gaming\pes\gameplay`.
 
 - `status` prints SHA-256 hashes, gameplay tracking lines, active gameplay-related Sider entries, and save-cache presence.
-- `status` also resolves each of the 9 constant bins to its winning source (first `cpk.root`, then `dt18_all.cpk`) and prints one effective-gameplay line, naming a release only when every winner matches its known hashes.
+- `status` also resolves each of the 9 constant bins by Sider load order (first `cpk.root`, then `dt18_all.cpk`) and prints one summary line, naming a release only when every winner matches its known hashes.
 - A switch command saves the current live file under `<GameRoot>\.backup\Data\`.
 - A switch command restores the vanilla file and updates the gameplay tracking line.
 - The helper prefers loose files under the `vanilla\` archive directory. It can fall back to `dt13 & dt18 vanilla.rar`.
