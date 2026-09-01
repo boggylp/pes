@@ -31,6 +31,104 @@ function Get-SystemFile {
     Join-Path $env:USERPROFILE 'Documents\KONAMI\eFootball PES 2021 SEASON UPDATE\2026\save\SYSTEM00000000'
 }
 
+$ConstantBins = @(
+    'constant_match.bin'
+    'constant_player.bin'
+    'constant_positionCK.bin'
+    'constant_positionPK.bin'
+    'constant_shootAging.bin'
+    'constant_stadium.bin'
+    'constant_team.bin'
+    'constant_tutorial.bin'
+    'constant_tutorialConsole.bin'
+)
+
+$Dt18Releases = @{
+    '3CFF08EE' = 'vanilla'
+    'AE2D1537' = 'F4L-5.1'
+    'B001E8DB' = 'NES2027-preview'
+    '5CC62416' = 'Ivar-07-17'
+    '5D714979' = 'FL27-beta'
+    '8868077C' = 'TFSE-fouls'
+    '77B48794' = 'Liberty-7.0b'
+}
+
+$BinReleases = @{
+    'constant_team.bin/94CE2EC7' = 'SSE-5.2'
+    'constant_player.bin/E0D81F53' = 'SSE-5.2'
+}
+
+function Get-ActiveCpkRoots {
+    param([string]$SiderPath)
+
+    $siderDir = Split-Path $SiderPath -Parent
+    Get-Content $SiderPath | Where-Object { $_ -match '^\s*cpk\.root\s*=' } | ForEach-Object {
+        $value = ($_ -split '=', 2)[1].Trim().Trim('"')
+        $path = if ([System.IO.Path]::IsPathRooted($value)) { $value } else { Join-Path $siderDir $value }
+        [pscustomobject]@{ Value = $value; Path = $path }
+    }
+}
+
+function Get-EffectiveBins {
+    param(
+        [string]$SiderPath,
+        [string]$Dt18Hash8
+    )
+
+    $roots = @(Get-ActiveCpkRoots $SiderPath)
+
+    foreach ($bin in $ConstantBins) {
+        $winner = $null
+        foreach ($root in $roots) {
+            $candidate = Join-Path $root.Path "common\match\constant\$bin"
+            if (Test-Path $candidate) {
+                $winner = [pscustomobject]@{
+                    Bin = $bin
+                    Source = $root.Value
+                    Hash = (Get-Sha256 $candidate).Substring(0, 8)
+                }
+                break
+            }
+        }
+        if (-not $winner) {
+            $winner = [pscustomobject]@{ Bin = $bin; Source = 'dt18_all.cpk'; Hash = $Dt18Hash8 }
+        }
+        $winner
+    }
+}
+
+function Get-EffectiveSummary {
+    param(
+        [object[]]$Bins,
+        [string]$Dt18Hash8
+    )
+
+    $sources = @($Bins | Select-Object -ExpandProperty Source -Unique)
+    $dt18Name = $Dt18Releases[$Dt18Hash8]
+    if (-not $dt18Name) { $dt18Name = 'unknown' }
+    $dt18Desc = "dt18_all.cpk $Dt18Hash8 ($dt18Name)"
+
+    if ($sources.Count -gt 1) {
+        return "mixed sources ($($sources -join ' + ')), see the bin table"
+    }
+
+    if ($sources[0] -eq 'dt18_all.cpk') {
+        return "all 9 bins from $dt18Desc"
+    }
+
+    $labels = @($Bins | ForEach-Object { $BinReleases["$($_.Bin)/$($_.Hash)"] } | Where-Object { $_ } | Select-Object -Unique)
+    $release = 'unrecognized bins'
+    if ($labels.Count -eq 1) {
+        $expected = @($BinReleases.GetEnumerator() | Where-Object { $_.Value -eq $labels[0] }).Count
+        $matched = @($Bins | Where-Object { $BinReleases["$($_.Bin)/$($_.Hash)"] -eq $labels[0] }).Count
+        if ($matched -eq $expected) {
+            $release = $labels[0]
+        }
+    }
+
+    "all 9 bins from $($sources[0]) ($release), $dt18Desc masked"
+}
+
 function Get-TrackingLines {
     param([string]$SiderPath)
 
@@ -152,11 +250,19 @@ function Show-Status {
     Write-Host "Gameplay root: $GameplayRoot"
     Write-Host ''
 
+    $dt18Hash = Get-Sha256 $dt18Path
+
     @(
         [pscustomobject]@{ Component = 'dt13'; Hash = (Get-Sha256 $dt13Path); Size = (Get-Item $dt13Path).Length; Path = $dt13Path }
-        [pscustomobject]@{ Component = 'dt18'; Hash = (Get-Sha256 $dt18Path); Size = (Get-Item $dt18Path).Length; Path = $dt18Path }
+        [pscustomobject]@{ Component = 'dt18'; Hash = $dt18Hash; Size = (Get-Item $dt18Path).Length; Path = $dt18Path }
         [pscustomobject]@{ Component = 'exe'; Hash = (Get-Sha256 $exePath); Size = (Get-Item $exePath).Length; Path = $exePath }
     ) | Format-Table -AutoSize
+
+    Write-Host ''
+    Write-Host 'Effective constant bins (first cpk.root wins, then dt18_all.cpk):'
+    $bins = @(Get-EffectiveBins -SiderPath $siderPath -Dt18Hash8 $dt18Hash.Substring(0, 8))
+    $bins | Format-Table -AutoSize
+    Write-Host ('Effective gameplay: ' + (Get-EffectiveSummary -Bins $bins -Dt18Hash8 $dt18Hash.Substring(0, 8)))
 
     Write-Host ''
     Write-Host 'Tracking comments:'
