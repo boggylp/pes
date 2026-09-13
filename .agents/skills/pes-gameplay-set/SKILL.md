@@ -38,7 +38,8 @@ Look first under `%USERPROFILE%\MEGA\gaming\pes\gameplay\`.
 - Prefer the highest matching version or newest matching issue already present.
 - Read the package's install instructions and matching memory-wiki article.
 - Use external research only when local evidence cannot identify the release or the user requests it.
-- Install only components required by the requested package.
+- Download and install only the components the user named.
+- Ask before adding a component the package recommends but the user did not name.
 - Preserve verified vanilla components that the package does not replace.
 - Exclude gameplay files, livecpk roots, and Lua modules outside the requested stack.
 - Treat `pure` or `nothing else` as excluding optional support files and add-ons.
@@ -59,9 +60,11 @@ For another release:
 
 1. Follow its bundled install instructions.
 2. Apply every required file and Sider entry in one pass.
-3. Remove active gameplay layers excluded by the approved stack.
+3. Delete every excluded gameplay layer from disk and drop its `sider.ini` entry.
 4. Mark each manual `sider.ini` block with one `; [GB-CUSTOM]` line.
 5. Update the `; gameplay:` tracking line.
+
+Comment a layer out instead of deleting it only when no archive restores it or the user asks for a reversible trial.
 
 Leave the SYSTEM cache present.
 
@@ -71,7 +74,8 @@ Load `pes-gameplay-status` again.
 
 - Verify every active component by hash.
 - Confirm all Sider entries match the requested destination.
-- Confirm no unrequested gameplay layer remains.
+- Confirm no unrequested gameplay file, livecpk root, or module is left on disk.
+- Read the livecpk and module directories, because `pes-gameplay-status` reads only Sider entries and active hashes.
 - Report the result before removing temporary extraction files.
 - Keep downloaded archives in the MEGA gameplay location.
 
