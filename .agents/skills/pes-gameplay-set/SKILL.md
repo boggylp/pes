@@ -82,8 +82,6 @@ Load `pes-gameplay-status` again.
 ## Review
 
 - Treat every file named as gameplay by the mod instructions as part of the stack.
-- Use existing archives as rollback sources.
-- Create an additional backup only when the user requests it.
 - Store requested gameplay backups under `%USERPROFILE%\MEGA\gaming\pes\gameplay\`.
 - Keep state and history in the `; gameplay:` line and memory wiki.
 - Follow the repository cache-safety rule.

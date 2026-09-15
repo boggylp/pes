@@ -18,6 +18,7 @@ This repository contains independent PES tools and live-install workflows.
 - Verify each gameplay-stack component from active files or the mod instructions.
 - Apply the complete requested gameplay stack. Do not leave an unrequested mixed state.
 - Treat a dt18 and a livecpk carrying the same constant bins as one pair. Never report their load order as a conflict or either one as inert.
+- Restore a replaced gameplay file from the gameplay archive. Never copy one to a backup path unless the user asks.
 - Never propose, mention, or perform deletion of `SYSTEM00000000` until an automated clear-cache and settings-reapply tool exists.
 - Store gameplay archives under `%USERPROFILE%\MEGA\gaming\pes\gameplay\`.
 - Store EDIT-save and SYSTEM-cache backups under `%USERPROFILE%\MEGA\gaming\pes\edit\saves\`.
