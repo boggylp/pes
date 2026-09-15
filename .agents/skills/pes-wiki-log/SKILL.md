@@ -38,7 +38,9 @@ Articles live at `~/memory/priv/wiki/pes/`. The universal `mem-wiki` skill owns 
 
 ## Review
 
-- State each verdict as a standing judgment, so the article reads as a ranking record.
+- State each verdict as a standing judgment with the evidence that settled it.
+- Keep a number only when it stays true, such as a hash, a size, a version, or a parameter value.
+- Leave a rank, a count, or a tally to the research or journal article, and link that article.
 - Rewrite a superseded verdict in place, and delete the bullets it replaces.
 - Quote one necessary sentence from an Evoweb post and include its URL.
 - Replace marketing claims with the tested state, hashes, host, and verdict.
