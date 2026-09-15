@@ -17,6 +17,7 @@ This repository contains independent PES tools and live-install workflows.
 - Inventory the full gameplay stack before a switch. Include dt13, dt18, gameplay livecpk roots, gameplay `lua.module` entries, the executable, hooks, and cache state.
 - Verify each gameplay-stack component from active files or the mod instructions.
 - Apply the complete requested gameplay stack. Do not leave an unrequested mixed state.
+- Treat a dt18 and a livecpk carrying the same constant bins as one pair. Never report their load order as a conflict or either one as inert.
 - Never propose, mention, or perform deletion of `SYSTEM00000000` until an automated clear-cache and settings-reapply tool exists.
 - Store gameplay archives under `%USERPROFILE%\MEGA\gaming\pes\gameplay\`.
 - Store EDIT-save and SYSTEM-cache backups under `%USERPROFILE%\MEGA\gaming\pes\edit\saves\`.
