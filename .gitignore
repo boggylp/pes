@@ -28,6 +28,7 @@ tools/bin/
 data/
 
 # Pi artifacts
+.pi/
 .pi-subagents/
 
 # Env
