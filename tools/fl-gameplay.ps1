@@ -295,7 +295,6 @@ function Switch-VanillaComponent {
 
     $component = if ($FileName -eq 'dt13_all.cpk') { 'dt13' } else { 'dt18' }
     $targetPath = Join-Path $GameRoot (Join-Path 'Data' $FileName)
-    $backupDir = Join-Path $GameRoot '.backup\Data'
     $siderPath = Join-Path $GameRoot 'SiderAddons\sider.ini'
     $systemFile = Get-SystemFile
 
@@ -314,20 +313,12 @@ function Switch-VanillaComponent {
             return
         }
 
-        New-Item -ItemType Directory -Path $backupDir -Force | Out-Null
-
-        $timestamp = Get-Date -Format 'yyyyMMdd-HHmmss'
-        $backupName = '{0}.{1}{2}' -f [System.IO.Path]::GetFileNameWithoutExtension($FileName), $timestamp, [System.IO.Path]::GetExtension($FileName)
-        $backupPath = Join-Path $backupDir $backupName
-
-        Copy-Item $targetPath $backupPath
         Copy-Item $source.Path $targetPath -Force
         Update-TrackingComment -SiderPath $siderPath -Component $component -Value ('vanilla({0})' -f $sourceHash.Substring(0, 8).ToLower())
 
         [pscustomobject]@{
             Component = $component
             Source = $source.Path
-            Backup = $backupPath
             BeforeHash = $beforeHash
             AfterHash = (Get-Sha256 $targetPath)
             SystemCache = if (Test-Path $systemFile) { 'present' } else { 'missing' }

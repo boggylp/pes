@@ -36,7 +36,6 @@ The default game root is `%PES_GAME_ROOT%` when that machine-level variable is s
 
 - `status` prints SHA-256 hashes, gameplay tracking lines, active gameplay-related Sider entries, and save-cache presence.
 - `status` also resolves each of the 9 constant bins by Sider load order (first `cpk.root`, then `dt18_all.cpk`) and prints one summary line, naming a release only when every winner matches its known hashes.
-- A switch command saves the current live file under `<GameRoot>\.backup\Data\`.
 - A switch command restores the vanilla file and updates the gameplay tracking line.
 - The helper prefers loose files under the `vanilla\` archive directory. It can fall back to `dt13 & dt18 vanilla.rar`.
 - The helper reports save-cache state but does not change it.
