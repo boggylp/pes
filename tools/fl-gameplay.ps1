@@ -51,11 +51,14 @@ $Dt18Releases = @{
     '5D714979' = 'FL27-beta'
     '8868077C' = 'TFSE-fouls'
     '77B48794' = 'Liberty-7.0b'
+    '9883EE70' = 'eSim-NextGen-BallPhysicsDefault'
 }
 
 $BinReleases = @{
     'constant_team.bin/94CE2EC7' = 'SSE-5.2'
     'constant_player.bin/E0D81F53' = 'SSE-5.2'
+    'constant_team.bin/A5F77829' = 'SOK-Unleashed-11'
+    'constant_player.bin/82B17F43' = 'SOK-Unleashed-11'
 }
 
 function Get-ActiveCpkRoots {
@@ -138,7 +141,7 @@ function Get-TrackingLines {
 function Get-GameplaySiderLines {
     param([string]$SiderPath)
 
-    $pattern = '(?i)(gameplay|sse|ai_tweaks|anti-cheat|speedserver2|attacking_mentality|attack_mentality|stamina|noscript|matchset|crow|anima)'
+    $pattern = '(?i)(gameplay|sse|sok|dynamic_difficulty|rng_overhaul|aoba|ai_tweaks|anti-cheat|speedserver2|attacking_mentality|attack_mentality|stamina|noscript|matchset|crow|anima)'
 
     Get-Content $SiderPath | Where-Object {
         $_ -match '^\s*(cpk\.root|lua\.module)\s*=' -and $_ -match $pattern
