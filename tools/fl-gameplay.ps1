@@ -52,6 +52,7 @@ $Dt18Releases = @{
     '8868077C' = 'TFSE-fouls'
     '77B48794' = 'Liberty-7.0b'
     '9883EE70' = 'eSim-NextGen-BallPhysicsDefault'
+    '9697147D' = 'SOK-Unleashed-11'
 }
 
 $BinReleases = @{
