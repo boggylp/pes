@@ -21,6 +21,8 @@ This repository contains independent PES tools and live-install workflows.
 - Restore a replaced gameplay file from the gameplay archive. Never copy one to a backup path unless the user asks.
 - Never propose, mention, or perform deletion of `SYSTEM00000000` until an automated clear-cache and settings-reapply tool exists.
 - Store gameplay archives under `%USERPROFILE%\MEGA\gaming\pes\gameplay\`.
+- Replace downloadable gameplay archives without a backup unless the user asks.
+- Name stored gameplay archives without whitespace: separate major parts with `_` and words within a part with `-`.
 - Store EDIT-save and SYSTEM-cache backups under `%USERPROFILE%\MEGA\gaming\pes\edit\saves\`.
 - Name save backups `fl26-<savetype>_fl26-<version>_<machine>_<YYYY-MM-DD>`. Build `<version>` from the patch name and executable `FileVersion`.
 - Use the active live database for player and face work. Do not use the sample CSV files for a live install.
