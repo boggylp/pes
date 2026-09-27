@@ -53,23 +53,31 @@ func parseFpk(b []byte) (*fpkFile, error) {
 	}
 	fileCount := binary.LittleEndian.Uint32(b[0x20:])
 	for i := 0; i < int(fileCount); i++ {
-		off := fpkHeaderSize + i*fpkEntrySize
-		if off+fpkEntrySize > len(b) {
-			return nil, fmt.Errorf("entry %d past EOF", i)
-		}
-		var e fpkEntry
-		e.nameOffset = binary.LittleEndian.Uint64(b[off:])
-		e.nameSize = binary.LittleEndian.Uint64(b[off+8:])
-		copy(e.md5[:], b[off+16:off+32])
-		e.dataOffset = binary.LittleEndian.Uint64(b[off+32:])
-		e.dataSize = binary.LittleEndian.Uint64(b[off+40:])
-		if e.dataOffset+e.dataSize > uint64(len(b)) || e.dataOffset+e.dataSize < e.dataOffset {
-			return nil, fmt.Errorf("entry %d data [%d,+%d) out of range (file %d)", i, e.dataOffset, e.dataSize, len(b))
-		}
-		if e.nameOffset+e.nameSize <= uint64(len(b)) && e.nameOffset+e.nameSize >= e.nameOffset {
-			e.name = string(b[e.nameOffset : e.nameOffset+e.nameSize])
+		e, err := parseFpkEntry(b, i)
+		if err != nil {
+			return nil, err
 		}
 		f.entries = append(f.entries, e)
 	}
 	return f, nil
+}
+
+func parseFpkEntry(b []byte, i int) (fpkEntry, error) {
+	off := fpkHeaderSize + i*fpkEntrySize
+	if off+fpkEntrySize > len(b) {
+		return fpkEntry{}, fmt.Errorf("entry %d past EOF", i)
+	}
+	var e fpkEntry
+	e.nameOffset = binary.LittleEndian.Uint64(b[off:])
+	e.nameSize = binary.LittleEndian.Uint64(b[off+8:])
+	copy(e.md5[:], b[off+16:off+32])
+	e.dataOffset = binary.LittleEndian.Uint64(b[off+32:])
+	e.dataSize = binary.LittleEndian.Uint64(b[off+40:])
+	if e.dataOffset+e.dataSize > uint64(len(b)) || e.dataOffset+e.dataSize < e.dataOffset {
+		return fpkEntry{}, fmt.Errorf("entry %d data [%d,+%d) out of range (file %d)", i, e.dataOffset, e.dataSize, len(b))
+	}
+	if e.nameOffset+e.nameSize <= uint64(len(b)) && e.nameOffset+e.nameSize >= e.nameOffset {
+		e.name = string(b[e.nameOffset : e.nameOffset+e.nameSize])
+	}
+	return e, nil
 }

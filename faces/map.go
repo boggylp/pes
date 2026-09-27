@@ -190,35 +190,34 @@ func copyDir(src, dst string) error {
 	for _, entry := range entries {
 		srcPath := filepath.Join(src, entry.Name())
 		dstPath := filepath.Join(dst, entry.Name())
-		if entry.IsDir() {
-			if err := os.MkdirAll(dstPath, 0o755); err != nil {
-				return err
-			}
-			if err := copyDir(srcPath, dstPath); err != nil {
-				return err
-			}
-			continue
-		}
-		if err := copyFile(srcPath, dstPath); err != nil {
+		if err := copyEntry(srcPath, dstPath, entry.IsDir()); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func copyFile(src, dst string) error {
+func copyEntry(srcPath, dstPath string, isDir bool) error {
+	if !isDir {
+		return copyFile(srcPath, dstPath)
+	}
+	if err := os.MkdirAll(dstPath, 0o755); err != nil {
+		return err
+	}
+	return copyDir(srcPath, dstPath)
+}
+
+func copyFile(src, dst string) (err error) {
 	in, err := os.Open(src)
 	if err != nil {
 		return err
 	}
-	defer in.Close()
+	defer func() { err = errors.Join(err, in.Close()) }()
 	out, err := os.OpenFile(dst, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o644)
 	if err != nil {
 		return err
 	}
-	if _, err := io.Copy(out, in); err != nil {
-		out.Close()
-		return err
-	}
-	return out.Close()
+	defer func() { err = errors.Join(err, out.Close()) }()
+	_, err = io.Copy(out, in)
+	return err
 }

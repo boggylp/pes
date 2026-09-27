@@ -65,7 +65,7 @@ func TestResetSquadOrderInDataRefusesOutOfBoundsSlot(t *testing.T) {
 	// shouldn't normally produce one.
 	data := make([]byte, tacticsSlotSize) // exactly one slot worth
 	slots := map[uint32]int{
-		5: 0,                              // valid: writes bytes 484..515
+		5: 0,                               // valid: writes bytes 484..515
 		9: tacticsSlotSize - squadOrderLen, // would write 484..515 past the slot end
 	}
 	got := resetSquadOrderInData(data, slots)

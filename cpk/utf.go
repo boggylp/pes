@@ -116,49 +116,66 @@ func parseTable(buf []byte) (*table, error) {
 		dataOff:  int(int32(binary.BigEndian.Uint32(buf[0x10:0x14]))) + tableBaseOffset,
 		rowSize:  int(binary.BigEndian.Uint16(buf[0x1A:0x1C])),
 		rowCount: int(int32(binary.BigEndian.Uint32(buf[0x1C:0x20]))),
+		enc:      encUTF8,
 	}
 	if buf[0x09] == 0 {
 		t.enc = encShiftJIS
-	} else {
-		t.enc = encUTF8
 	}
 	colCount := int(binary.BigEndian.Uint16(buf[0x18:0x1A]))
 
 	cur := columnDataOffset
 	for i := 0; i < colCount; i++ {
-		if cur >= len(buf) {
-			return nil, fmt.Errorf("column %d: buffer overrun at %d", i, cur)
-		}
-		flagsByte := buf[cur]
-		col := column{
-			flags: columnFlag(flagsByte) &^ typeMask,
-			typ:   columnType(flagsByte & byte(typeMask)),
-		}
-		cur++
-
-		if col.hasFlag(flagHasName) {
-			if cur+4 > len(buf) {
-				return nil, fmt.Errorf("column %d: name offset overrun", i)
-			}
-			nameOff := int(int32(binary.BigEndian.Uint32(buf[cur:cur+4]))) + t.stringsO
-			cur += 4
-			name, err := t.readStringAt(nameOff)
-			if err != nil {
-				return nil, fmt.Errorf("column %d name: %w", i, err)
-			}
-			col.name = name
-		}
-		if col.hasFlag(flagHasDefaultValue) {
-			n := col.typ.size()
-			if cur+n > len(buf) {
-				return nil, fmt.Errorf("column %d: default value overrun", i)
-			}
-			col.defValue = buf[cur : cur+n]
-			cur += n
+		col, next, err := t.parseColumn(cur, i)
+		if err != nil {
+			return nil, err
 		}
 		t.columns = append(t.columns, col)
+		cur = next
 	}
 	return t, nil
+}
+
+func (t *table) parseColumn(cur, i int) (column, int, error) {
+	buf := t.buf
+	if cur >= len(buf) {
+		return column{}, 0, fmt.Errorf("column %d: buffer overrun at %d", i, cur)
+	}
+	flagsByte := buf[cur]
+	col := column{
+		flags: columnFlag(flagsByte) &^ typeMask,
+		typ:   columnType(flagsByte & byte(typeMask)),
+	}
+	cur++
+
+	if col.hasFlag(flagHasName) {
+		name, next, err := t.parseColumnName(cur, i)
+		if err != nil {
+			return column{}, 0, err
+		}
+		col.name = name
+		cur = next
+	}
+	if col.hasFlag(flagHasDefaultValue) {
+		n := col.typ.size()
+		if cur+n > len(buf) {
+			return column{}, 0, fmt.Errorf("column %d: default value overrun", i)
+		}
+		col.defValue = buf[cur : cur+n]
+		cur += n
+	}
+	return col, cur, nil
+}
+
+func (t *table) parseColumnName(cur, i int) (string, int, error) {
+	if cur+4 > len(t.buf) {
+		return "", 0, fmt.Errorf("column %d: name offset overrun", i)
+	}
+	nameOff := int(int32(binary.BigEndian.Uint32(t.buf[cur:cur+4]))) + t.stringsO
+	name, err := t.readStringAt(nameOff)
+	if err != nil {
+		return "", 0, fmt.Errorf("column %d name: %w", i, err)
+	}
+	return name, cur + 4, nil
 }
 
 // readStringAt reads a NUL-terminated string at an absolute offset in the

@@ -87,61 +87,70 @@ func cmdExtract(args []string) {
 	defer func() { _ = r.Close() }()
 
 	if *inner != "" {
-		f, ok := r.FindFile(*inner)
-		if !ok {
-			fmt.Fprintf(os.Stderr, "file %q not found in CPK\n", *inner)
-			os.Exit(1)
-		}
-		data, err := r.ReadFile(*f)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "read: %v\n", err)
-			os.Exit(1)
-		}
-		dest := *out
-		if dest == "" {
-			dest = filepath.Base(f.Name)
-		}
-		if err := os.WriteFile(dest, data, 0644); err != nil {
-			fmt.Fprintf(os.Stderr, "write %s: %v\n", dest, err)
-			os.Exit(1)
-		}
-		fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", dest, len(data))
+		extractSingleFile(r, *inner, *out)
 		return
 	}
+	extractFiles(r, *prefix, *out)
+}
 
-	dir := *out
+func extractSingleFile(r *Reader, inner, out string) {
+	f, ok := r.FindFile(inner)
+	if !ok {
+		fmt.Fprintf(os.Stderr, "file %q not found in CPK\n", inner)
+		os.Exit(1)
+	}
+	data, err := r.ReadFile(*f)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "read: %v\n", err)
+		os.Exit(1)
+	}
+	dest := out
+	if dest == "" {
+		dest = filepath.Base(f.Name)
+	}
+	if err := os.WriteFile(dest, data, 0644); err != nil {
+		fmt.Fprintf(os.Stderr, "write %s: %v\n", dest, err)
+		os.Exit(1)
+	}
+	fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", dest, len(data))
+}
+
+func extractFiles(r *Reader, prefix, dir string) {
 	if dir == "" {
 		fmt.Fprintln(os.Stderr, "extract: --out <dir> required for full or --prefix extraction")
 		os.Exit(1)
 	}
-	wantPrefix := normalizePath(*prefix)
+	wantPrefix := normalizePath(prefix)
 	var extracted, skipped int
 	for _, f := range r.Files() {
 		if wantPrefix != "" && !strings.HasPrefix(normalizePath(f.Path()), wantPrefix) {
 			continue
 		}
-		data, err := r.ReadFile(f)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "skip %s: %v\n", f.Path(), err)
-			skipped++
-			continue
-		}
-		dest := filepath.Join(dir, filepath.FromSlash(f.Path()))
-		if err := os.MkdirAll(filepath.Dir(dest), 0755); err != nil {
-			fmt.Fprintf(os.Stderr, "mkdir %s: %v\n", filepath.Dir(dest), err)
-			skipped++
-			continue
-		}
-		if err := os.WriteFile(dest, data, 0644); err != nil {
-			fmt.Fprintf(os.Stderr, "write %s: %v\n", dest, err)
+		if err := extractFile(r, f, dir); err != nil {
+			fmt.Fprintln(os.Stderr, err)
 			skipped++
 			continue
 		}
 		extracted++
 	}
-	if *prefix != "" && extracted == 0 {
-		fmt.Fprintf(os.Stderr, "no files matched prefix %q\n", *prefix)
+	if prefix != "" && extracted == 0 {
+		fmt.Fprintf(os.Stderr, "no files matched prefix %q\n", prefix)
 		os.Exit(1)
 	}
 	fmt.Fprintf(os.Stderr, "extracted %d files to %s (%d skipped)\n", extracted, dir, skipped)
+}
+
+func extractFile(r *Reader, f File, dir string) error {
+	data, err := r.ReadFile(f)
+	if err != nil {
+		return fmt.Errorf("skip %s: %w", f.Path(), err)
+	}
+	dest := filepath.Join(dir, filepath.FromSlash(f.Path()))
+	if err := os.MkdirAll(filepath.Dir(dest), 0755); err != nil {
+		return fmt.Errorf("mkdir %s: %w", filepath.Dir(dest), err)
+	}
+	if err := os.WriteFile(dest, data, 0644); err != nil {
+		return fmt.Errorf("write %s: %w", dest, err)
+	}
+	return nil
 }

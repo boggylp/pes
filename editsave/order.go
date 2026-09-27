@@ -5,7 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"path/filepath"
 )
 
 // Empirically located on FL26 v2.2: each team's tactics slot stores a
@@ -58,59 +57,14 @@ func runResetSquadOrder(input, outFile, toolsDir string, force, allowLiveName bo
 	if err := ensureSafeOutFile(outFile, force, allowLiveName); err != nil {
 		return err
 	}
-
-	work, err := os.MkdirTemp("", "editsave-reset-*")
-	if err != nil {
-		return fmt.Errorf("mkdir temp: %w", err)
-	}
-	defer func() {
-		if rmErr := os.RemoveAll(work); rmErr != nil {
-			fmt.Fprintf(os.Stderr, "warning: failed to remove work dir %s: %v\n", work, rmErr)
+	return patchSave(tools, input, outFile, "editsave-reset-*", func(data []byte, slots map[uint32]int) error {
+		reset := resetSquadOrderInData(data, slots)
+		fmt.Fprintf(os.Stderr, "squad-order arrays reset to identity for %d slots\n", reset)
+		if reset == 0 {
+			return errors.New("no slots reset; refusing to encrypt an unchanged save")
 		}
-	}()
-
-	decDir := filepath.Join(work, "dec")
-	if err := os.Mkdir(decDir, 0o755); err != nil {
-		return err
-	}
-	if err := runDecrypter(tools, input, decDir); err != nil {
-		return fmt.Errorf("stage 1 (decrypt): %w", err)
-	}
-	if err := verifyDecryptedDir(decDir); err != nil {
-		return fmt.Errorf("stage 1 verify: %w", err)
-	}
-
-	dataPath := filepath.Join(decDir, "data.dat")
-	data, err := os.ReadFile(dataPath)
-	if err != nil {
-		return fmt.Errorf("reading data.dat: %w", err)
-	}
-
-	slots, sectionStart, sectionEnd, err := scanTacticsSection(data)
-	if err != nil {
-		return fmt.Errorf("scanning tactics section: %w", err)
-	}
-	fmt.Fprintf(os.Stderr, "tactics section: [0x%08x..0x%08x) = %d slots\n",
-		sectionStart, sectionEnd, len(slots))
-
-	reset := resetSquadOrderInData(data, slots)
-	fmt.Fprintf(os.Stderr, "squad-order arrays reset to identity for %d slots\n", reset)
-	if reset == 0 {
-		return errors.New("no slots reset; refusing to encrypt an unchanged save")
-	}
-
-	if err := os.WriteFile(dataPath, data, 0o644); err != nil {
-		return fmt.Errorf("writing modified data.dat: %w", err)
-	}
-	if err := encrypterToFileAtomic(tools, decDir, outFile); err != nil {
-		return fmt.Errorf("stage 2 (encrypt): %w", err)
-	}
-	info, err := os.Stat(outFile)
-	if err != nil {
-		return fmt.Errorf("encrypter ran but output missing: %w", err)
-	}
-	fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", outFile, info.Size())
-	return nil
+		return nil
+	})
 }
 
 // resetSquadOrderInData overwrites the squad-order array at every slot

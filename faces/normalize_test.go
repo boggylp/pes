@@ -25,12 +25,12 @@ func TestNormalize(t *testing.T) {
 
 func TestGetBestMatch(t *testing.T) {
 	candidates := map[string]struct{}{
-		"cristiano ronaldo":  {},
-		"lionel messi":       {},
-		"jurgen klopp":       {},
-		"r santa cruz":       {},
-		"ange postecoglou":   {},
-		"erik ten hag":       {},
+		"cristiano ronaldo": {},
+		"lionel messi":      {},
+		"jurgen klopp":      {},
+		"r santa cruz":      {},
+		"ange postecoglou":  {},
+		"erik ten hag":      {},
 	}
 
 	tests := []struct {

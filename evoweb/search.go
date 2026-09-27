@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"maps"
 	"net/http"
 	"net/url"
 	"os"
@@ -21,7 +22,35 @@ type SearchResult struct {
 	Threads []string `json:"threads"`
 }
 
+type searchOptions struct {
+	query    string
+	user     string
+	output   string
+	maxPages int
+	delay    time.Duration
+}
+
 func cmdSearch(args []string) {
+	opts := parseSearchFlags(args)
+
+	client, err := buildClient("")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	finalURL, body := submitSearch(client, opts)
+
+	threads := extractThreadLinks(body)
+	if strings.Contains(finalURL, "/search/") {
+		threads = collectResultPages(client, finalURL, opts, threads)
+	}
+
+	sorted := sortThreadURLs(threads)
+	writeJSON(SearchResult{Query: opts.query, Threads: sorted}, opts.output)
+	log.Printf("found %d unique thread URLs", len(sorted))
+}
+
+func parseSearchFlags(args []string) searchOptions {
 	fs := flag.NewFlagSet("search", flag.ExitOnError)
 	query := fs.String("q", "", "search query (required)")
 	user := fs.String("user", "", "restrict to posts by this username (optional)")
@@ -37,21 +66,24 @@ func cmdSearch(args []string) {
 		fs.PrintDefaults()
 		os.Exit(1)
 	}
+	return searchOptions{query: *query, user: *user, output: *output, maxPages: *maxPages, delay: *delay}
+}
 
-	client, err := buildClient("")
+func submitSearch(client *http.Client, opts searchOptions) (string, []byte) {
+	form := url.Values{
+		"keywords":      {opts.query},
+		"c[title_only]": {"0"},
+		"order":         {"date"},
+	}
+	if opts.user != "" {
+		form.Set("users", opts.user)
+	}
+
+	token, err := extractCSRFToken(client)
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	// Step 1: POST /search/search to start a search session, follow the redirect
-	form := url.Values{
-		"keywords":  {*query},
-		"c[title_only]": {"0"},
-		"order":     {"date"},
-	}
-	if *user != "" {
-		form.Set("users", *user)
-	}
+	form.Set("_xfToken", token)
 
 	req, err := http.NewRequest("POST", baseURL+"/search/search", strings.NewReader(form.Encode()))
 	if err != nil {
@@ -59,15 +91,6 @@ func cmdSearch(args []string) {
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
-
-	// Need _xfToken
-	token, err := extractCSRFToken(client)
-	if err != nil {
-		log.Fatal(err)
-	}
-	form.Set("_xfToken", token)
-	req.Body = io.NopCloser(strings.NewReader(form.Encode()))
-	req.ContentLength = int64(len(form.Encode()))
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -77,42 +100,45 @@ func cmdSearch(args []string) {
 	body, _ := io.ReadAll(resp.Body)
 	_ = resp.Body.Close()
 	log.Printf("search POST landed at: %s (HTTP %d, %d bytes)", finalURL, resp.StatusCode, len(body))
+	return finalURL, body
+}
 
+func collectResultPages(client *http.Client, finalURL string, opts searchOptions, seen map[string]struct{}) map[string]struct{} {
+	threads := seen
+	for page := 2; page <= opts.maxPages; page++ {
+		time.Sleep(opts.delay)
+		pageURL := strings.TrimSuffix(finalURL, "/") + fmt.Sprintf("/page-%d", page)
+		body, err := fetchBody(client, pageURL)
+		if err != nil {
+			break
+		}
+		merged := mergeThreadSets(threads, extractThreadLinks(body))
+		log.Printf("page %d: +%d threads", page, len(merged)-len(threads))
+		threads = merged
+	}
+	return threads
+}
+
+func extractThreadLinks(body []byte) map[string]struct{} {
 	threads := map[string]struct{}{}
 	for _, m := range threadLinkRegex.FindAllString(string(body), -1) {
 		threads[m] = struct{}{}
 	}
+	return threads
+}
 
-	// Paginate
-	if strings.Contains(finalURL, "/search/") {
-		for page := 2; page <= *maxPages; page++ {
-			time.Sleep(*delay)
-			pageURL := strings.TrimSuffix(finalURL, "/") + fmt.Sprintf("/page-%d", page)
-			req2, _ := http.NewRequest("GET", pageURL, nil)
-			req2.Header.Set("User-Agent", "Mozilla/5.0")
-			r2, err := client.Do(req2)
-			if err != nil || r2.StatusCode != 200 {
-				if r2 != nil {
-					_ = r2.Body.Close()
-				}
-				break
-			}
-			b2, _ := io.ReadAll(r2.Body)
-			_ = r2.Body.Close()
-			before := len(threads)
-			for _, m := range threadLinkRegex.FindAllString(string(b2), -1) {
-				threads[m] = struct{}{}
-			}
-			log.Printf("page %d: +%d threads", page, len(threads)-before)
-		}
-	}
+func mergeThreadSets(a, b map[string]struct{}) map[string]struct{} {
+	merged := make(map[string]struct{}, len(a)+len(b))
+	maps.Copy(merged, a)
+	maps.Copy(merged, b)
+	return merged
+}
 
+func sortThreadURLs(threads map[string]struct{}) []string {
 	var sorted []string
 	for t := range threads {
 		sorted = append(sorted, baseURL+t)
 	}
 	sort.Strings(sorted)
-
-	writeJSON(SearchResult{Query: *query, Threads: sorted}, *output)
-	log.Printf("found %d unique thread URLs", len(sorted))
+	return sorted
 }

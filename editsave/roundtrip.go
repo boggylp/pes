@@ -55,78 +55,77 @@ func runRoundtrip(input, toolsDir string, keepWork, requireStrict bool) int {
 		fmt.Fprintf(os.Stderr, "mkdir temp: %v\n", err)
 		return 1
 	}
-	defer func() {
-		if keepWork {
-			fmt.Fprintf(os.Stderr, "kept work dir: %s\n", work)
-			return
-		}
-		if err := os.RemoveAll(work); err != nil {
-			fmt.Fprintf(os.Stderr, "warning: failed to remove work dir %s: %v\n", work, err)
-		}
-	}()
+	defer cleanupRoundtripWork(work, keepWork)
 
-	decA := filepath.Join(work, "dec-a")
-	if err := os.Mkdir(decA, 0o755); err != nil {
+	hashes, err := runRoundtripStages(tools, input, work)
+	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 1
 	}
-	if err := runDecrypter(tools, input, decA); err != nil {
-		fmt.Fprintf(os.Stderr, "stage 1 (decrypt input): %v\n", err)
-		return 1
-	}
-	if err := verifyDecryptedDir(decA); err != nil {
-		fmt.Fprintf(os.Stderr, "stage 1 verify: %v\n", err)
-		return 1
-	}
+	return reportRoundtrip(hashes, requireStrict)
+}
 
+func cleanupRoundtripWork(work string, keepWork bool) {
+	if keepWork {
+		fmt.Fprintf(os.Stderr, "kept work dir: %s\n", work)
+		return
+	}
+	removeWorkDir(work)
+}
+
+type roundtripHashes struct {
+	input, reEnc string
+	encA, encB   []byte
+	dataA, dataB []byte
+}
+
+func runRoundtripStages(tools toolPaths, input, work string) (roundtripHashes, error) {
+	decA := filepath.Join(work, "dec-a")
+	if err := decryptStage(tools, input, decA, "1", "decrypt input"); err != nil {
+		return roundtripHashes{}, err
+	}
 	reEnc := filepath.Join(work, "EDIT00000000")
 	if err := runEncrypter(tools, decA, reEnc); err != nil {
-		fmt.Fprintf(os.Stderr, "stage 2 (re-encrypt): %v\n", err)
-		return 1
+		return roundtripHashes{}, fmt.Errorf("stage 2 (re-encrypt): %w", err)
 	}
-
 	decB := filepath.Join(work, "dec-b")
-	if err := os.Mkdir(decB, 0o755); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return 1
-	}
-	if err := runDecrypter(tools, reEnc, decB); err != nil {
-		fmt.Fprintf(os.Stderr, "stage 3 (decrypt re-encryption): %v\n", err)
-		return 1
-	}
-	if err := verifyDecryptedDir(decB); err != nil {
-		fmt.Fprintf(os.Stderr, "stage 3 verify: %v\n", err)
-		return 1
+	if err := decryptStage(tools, reEnc, decB, "3", "decrypt re-encryption"); err != nil {
+		return roundtripHashes{}, err
 	}
 
-	encHashA, err := sha256File(input)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return 1
+	paths := []string{input, reEnc, filepath.Join(decA, "data.dat"), filepath.Join(decB, "data.dat")}
+	sums := make([][]byte, len(paths))
+	for i, p := range paths {
+		sum, err := sha256File(p)
+		if err != nil {
+			return roundtripHashes{}, err
+		}
+		sums[i] = sum
 	}
-	encHashB, err := sha256File(reEnc)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return 1
-	}
-	dataHashA, err := sha256File(filepath.Join(decA, "data.dat"))
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return 1
-	}
-	dataHashB, err := sha256File(filepath.Join(decB, "data.dat"))
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return 1
-	}
+	return roundtripHashes{input: input, reEnc: reEnc, encA: sums[0], encB: sums[1], dataA: sums[2], dataB: sums[3]}, nil
+}
 
-	strict := bytes.Equal(encHashA, encHashB)
-	content := bytes.Equal(dataHashA, dataHashB)
+func decryptStage(tools toolPaths, in, dir, stage, label string) error {
+	if err := os.Mkdir(dir, 0o755); err != nil {
+		return err
+	}
+	if err := runDecrypter(tools, in, dir); err != nil {
+		return fmt.Errorf("stage %s (%s): %w", stage, label, err)
+	}
+	if err := verifyDecryptedDir(dir); err != nil {
+		return fmt.Errorf("stage %s verify: %w", stage, err)
+	}
+	return nil
+}
 
-	fmt.Fprintf(os.Stderr, "input:        %s  (%s)\n", input, hex.EncodeToString(encHashA))
-	fmt.Fprintf(os.Stderr, "re-encrypted: %s  (%s)\n", reEnc, hex.EncodeToString(encHashB))
-	fmt.Fprintf(os.Stderr, "decrypt(input)  data.dat sha256: %s\n", hex.EncodeToString(dataHashA))
-	fmt.Fprintf(os.Stderr, "decrypt(re-enc) data.dat sha256: %s\n", hex.EncodeToString(dataHashB))
+func reportRoundtrip(h roundtripHashes, requireStrict bool) int {
+	strict := bytes.Equal(h.encA, h.encB)
+	content := bytes.Equal(h.dataA, h.dataB)
+
+	fmt.Fprintf(os.Stderr, "input:        %s  (%s)\n", h.input, hex.EncodeToString(h.encA))
+	fmt.Fprintf(os.Stderr, "re-encrypted: %s  (%s)\n", h.reEnc, hex.EncodeToString(h.encB))
+	fmt.Fprintf(os.Stderr, "decrypt(input)  data.dat sha256: %s\n", hex.EncodeToString(h.dataA))
+	fmt.Fprintf(os.Stderr, "decrypt(re-enc) data.dat sha256: %s\n", hex.EncodeToString(h.dataB))
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintf(os.Stderr, "strict (encrypted bytes identical):  %s\n", verdict(strict))
 	fmt.Fprintf(os.Stderr, "content (data.dat identical):        %s\n", verdict(content))

@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"slices"
 	"strconv"
 )
 
@@ -143,8 +144,22 @@ func writeEnvelope(path string, magic, body []byte) error {
 	return os.WriteFile(path, out, 0o644)
 }
 
-func addSlot(inPath, outPath string, team, srcN, dstN int, recordPath string) error {
-	env, err := readEnvelope(inPath)
+type addSlotOptions struct {
+	inPath     string
+	outPath    string
+	team       int
+	srcN       int
+	dstN       int
+	recordPath string
+}
+
+func formatSlotFileName(team, n int) string {
+	ord := map[int]string{1: "1st", 2: "2nd", 3: "3rd", 4: "4th"}
+	return fmt.Sprintf("%d_DEF_%s_realUni.bin", team, ord[n])
+}
+
+func addSlot(opts addSlotOptions) error {
+	env, err := readEnvelope(opts.inPath)
 	if err != nil {
 		return err
 	}
@@ -152,62 +167,78 @@ func addSlot(inPath, outPath string, team, srcN, dstN int, recordPath string) er
 	if err != nil {
 		return err
 	}
-	ord := map[int]string{1: "1st", 2: "2nd", 3: "3rd", 4: "4th"}
-	srcName := fmt.Sprintf("%d_DEF_%s_realUni.bin", team, ord[srcN])
-	dstName := fmt.Sprintf("%d_DEF_%s_realUni.bin", team, ord[dstN])
+	srcName := formatSlotFileName(opts.team, opts.srcN)
+	dstName := formatSlotFileName(opts.team, opts.dstN)
 
-	srcIdx := -1
-	for i, e := range idx {
-		switch cstr(env.body, e.nameOff) {
-		case srcName:
-			srcIdx = i
-		case dstName:
-			return fmt.Errorf("%s already exists at index %d", dstName, i)
-		}
+	srcIdx, err := findSourceSlot(env.body, idx, srcName, dstName)
+	if err != nil {
+		return err
 	}
-	if srcIdx < 0 {
-		return fmt.Errorf("source slot %s not found", srcName)
-	}
-	src := idx[srcIdx]
-	var rec []byte
-	if recordPath != "" {
-		rec, err = os.ReadFile(recordPath)
-		if err != nil {
-			return err
-		}
-		if uint32(len(rec)) != src.recSize {
-			return fmt.Errorf("donor record %d B, expected %d to match %s", len(rec), src.recSize, srcName)
-		}
-	} else {
-		rec = append([]byte(nil), env.body[src.recOff:src.recOff+src.recSize]...)
-		texSrc := fmt.Sprintf("u%04dp%d", team, srcN)
-		texDst := fmt.Sprintf("u%04dp%d", team, dstN)
-		rec = bytes.ReplaceAll(rec, []byte(texSrc), []byte(texDst))
+	rec, err := buildSlotRecord(env.body, idx[srcIdx], srcName, opts)
+	if err != nil {
+		return err
 	}
 
 	body := serialize(env.body, count, idx, srcIdx+1, dstName, rec)
-	if err := writeEnvelope(outPath, env.header, body); err != nil {
+	if err := writeEnvelope(opts.outPath, env.header, body); err != nil {
 		return err
 	}
-	chk, err := readEnvelope(outPath)
+	c2, err := verifySlot(opts.outPath, dstName, rec)
 	if err != nil {
-		return fmt.Errorf("verify reopen: %w", err)
+		return err
+	}
+	fmt.Printf("wrote %s: count %d->%d, %s present (record %dB)\n", opts.outPath, count, c2, dstName, len(rec))
+	return nil
+}
+
+func findSourceSlot(body []byte, idx []entry, srcName, dstName string) (int, error) {
+	srcIdx := -1
+	for i, e := range idx {
+		switch cstr(body, e.nameOff) {
+		case srcName:
+			srcIdx = i
+		case dstName:
+			return -1, fmt.Errorf("%s already exists at index %d", dstName, i)
+		}
+	}
+	if srcIdx < 0 {
+		return -1, fmt.Errorf("source slot %s not found", srcName)
+	}
+	return srcIdx, nil
+}
+
+func buildSlotRecord(body []byte, src entry, srcName string, opts addSlotOptions) ([]byte, error) {
+	if opts.recordPath == "" {
+		rec := append([]byte(nil), body[src.recOff:src.recOff+src.recSize]...)
+		texSrc := fmt.Sprintf("u%04dp%d", opts.team, opts.srcN)
+		texDst := fmt.Sprintf("u%04dp%d", opts.team, opts.dstN)
+		return bytes.ReplaceAll(rec, []byte(texSrc), []byte(texDst)), nil
+	}
+	rec, err := os.ReadFile(opts.recordPath)
+	if err != nil {
+		return nil, err
+	}
+	if uint32(len(rec)) != src.recSize {
+		return nil, fmt.Errorf("donor record %d B, expected %d to match %s", len(rec), src.recSize, srcName)
+	}
+	return rec, nil
+}
+
+func verifySlot(path, dstName string, rec []byte) (uint32, error) {
+	chk, err := readEnvelope(path)
+	if err != nil {
+		return 0, fmt.Errorf("verify reopen: %w", err)
 	}
 	c2, _, idx2, err := parse(chk.body)
 	if err != nil {
-		return fmt.Errorf("verify parse: %w", err)
+		return 0, fmt.Errorf("verify parse: %w", err)
 	}
-	found := false
 	for _, e := range idx2 {
 		if cstr(chk.body, e.nameOff) == dstName && bytes.Equal(chk.body[e.recOff:e.recOff+e.recSize], rec) {
-			found = true
+			return c2, nil
 		}
 	}
-	if !found {
-		return fmt.Errorf("verify: %s missing or wrong after write", dstName)
-	}
-	fmt.Printf("wrote %s: count %d->%d, %s present (record %dB)\n", outPath, count, c2, dstName, len(rec))
-	return nil
+	return 0, fmt.Errorf("verify: %s missing or wrong after write", dstName)
 }
 
 func unicolorAddSlot(inPath, outPath string, team int) error {
@@ -225,15 +256,37 @@ func unicolorAddSlot(inPath, outPath string, team int) error {
 	cntOff := off + 4
 	count := int(body[cntOff])
 	slots := off + 5
-	gk, players := -1, 0
+	gk, players := countUniColorSlots(body[slots:], count)
+	if err := checkUniColorLayout(team, count, gk, players); err != nil {
+		return err
+	}
+	gkEntry := append([]byte(nil), body[slots+gk*8:slots+gk*8+8]...)
+	newEntry := append([]byte(nil), body[slots+(players-1)*8:slots+(players-1)*8+8]...)
+	newEntry[0] = byte(players)          // next player marker (00,01 -> 02)
+	copy(body[slots+gk*8:], newEntry)    // new player where GK was
+	copy(body[slots+(gk+1)*8:], gkEntry) // GK shifts into the padding slot
+	body[cntOff] = byte(count + 1)
+	if err := writeEnvelope(outPath, env.header, body); err != nil {
+		return err
+	}
+	fmt.Printf("wrote %s: team %d count %d->%d, added player marker %d, GK moved to slot %d\n", outPath, team, count, count+1, players, gk+1)
+	return nil
+}
+
+func countUniColorSlots(slots []byte, count int) (gk, players int) {
+	gk = -1
 	for i := 0; i < count; i++ {
-		switch m := body[slots+i*8]; {
+		switch m := slots[i*8]; {
 		case m == 0x10:
 			gk = i
 		case m < 0x10:
 			players++
 		}
 	}
+	return gk, players
+}
+
+func checkUniColorLayout(team, count, gk, players int) error {
 	if gk < 0 {
 		return fmt.Errorf("no GK1st (marker 0x10) slot for team %d", team)
 	}
@@ -246,16 +299,6 @@ func unicolorAddSlot(inPath, outPath string, team int) error {
 	if count >= 10 {
 		return fmt.Errorf("team %d UniColor record full (%d slots)", team, count)
 	}
-	gkEntry := append([]byte(nil), body[slots+gk*8:slots+gk*8+8]...)
-	newEntry := append([]byte(nil), body[slots+(players-1)*8:slots+(players-1)*8+8]...)
-	newEntry[0] = byte(players) // next player marker (00,01 -> 02)
-	copy(body[slots+gk*8:], newEntry)        // new player where GK was
-	copy(body[slots+(gk+1)*8:], gkEntry)     // GK shifts into the padding slot
-	body[cntOff] = byte(count + 1)
-	if err := writeEnvelope(outPath, env.header, body); err != nil {
-		return err
-	}
-	fmt.Printf("wrote %s: team %d count %d->%d, added player marker %d, GK moved to slot %d\n", outPath, team, count, count+1, players, gk+1)
 	return nil
 }
 
@@ -279,50 +322,91 @@ func retex(inPath, outPath, from, to string) error {
 	return nil
 }
 
+type command struct {
+	name  string
+	usage string
+	argc  []int
+	run   func(args []string) error
+}
+
+var commands = []command{
+	{
+		name:  "add-slot",
+		usage: "usage: uniparam add-slot <in> <out> <team> <srcSlot> <dstSlot> [donorRecord.bin]",
+		argc:  []int{7, 8},
+		run:   runAddSlot,
+	},
+	{
+		name:  "unicolor-addslot",
+		usage: "usage: uniparam unicolor-addslot <in> <out> <team>",
+		argc:  []int{5},
+		run: func(args []string) error {
+			return unicolorAddSlot(args[2], args[3], mustAtoi(args[4]))
+		},
+	},
+	{
+		name:  "inflate",
+		usage: "usage: uniparam inflate <in> <out>",
+		argc:  []int{4},
+		run:   runInflate,
+	},
+	{
+		name:  "retex",
+		usage: "usage: uniparam retex <src> <out> <fromTex> <toTex>",
+		argc:  []int{6},
+		run: func(args []string) error {
+			return retex(args[2], args[3], args[4], args[5])
+		},
+	},
+}
+
+func runAddSlot(args []string) error {
+	record := ""
+	if len(args) == 8 {
+		record = args[7]
+	}
+	return addSlot(addSlotOptions{
+		inPath:     args[2],
+		outPath:    args[3],
+		team:       mustAtoi(args[4]),
+		srcN:       mustAtoi(args[5]),
+		dstN:       mustAtoi(args[6]),
+		recordPath: record,
+	})
+}
+
+func runInflate(args []string) error {
+	env, err := readEnvelope(args[2])
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(args[3], env.body, 0o644)
+}
+
+func findCommand(name string) (command, bool) {
+	for _, c := range commands {
+		if c.name == name {
+			return c, true
+		}
+	}
+	return command{}, false
+}
+
 func main() {
 	if len(os.Args) < 2 {
 		fmt.Fprintln(os.Stderr, "usage:\n  uniparam unicolor-addslot <in> <out> <team>\n  uniparam add-slot <in> <out> <team> <srcSlot> <dstSlot> [donorRecord]\n  uniparam retex <src> <out> <fromTex> <toTex>\n  uniparam inflate <in> <out>")
 		os.Exit(2)
 	}
-	var err error
-	switch os.Args[1] {
-	case "add-slot":
-		if len(os.Args) != 7 && len(os.Args) != 8 {
-			fmt.Fprintln(os.Stderr, "usage: uniparam add-slot <in> <out> <team> <srcSlot> <dstSlot> [donorRecord.bin]")
-			os.Exit(2)
-		}
-		record := ""
-		if len(os.Args) == 8 {
-			record = os.Args[7]
-		}
-		err = addSlot(os.Args[2], os.Args[3], mustAtoi(os.Args[4]), mustAtoi(os.Args[5]), mustAtoi(os.Args[6]), record)
-	case "unicolor-addslot":
-		if len(os.Args) != 5 {
-			fmt.Fprintln(os.Stderr, "usage: uniparam unicolor-addslot <in> <out> <team>")
-			os.Exit(2)
-		}
-		err = unicolorAddSlot(os.Args[2], os.Args[3], mustAtoi(os.Args[4]))
-	case "inflate":
-		if len(os.Args) != 4 {
-			fmt.Fprintln(os.Stderr, "usage: uniparam inflate <in> <out>")
-			os.Exit(2)
-		}
-		var env *envelope
-		env, err = readEnvelope(os.Args[2])
-		if err == nil {
-			err = os.WriteFile(os.Args[3], env.body, 0o644)
-		}
-	case "retex":
-		if len(os.Args) != 6 {
-			fmt.Fprintln(os.Stderr, "usage: uniparam retex <src> <out> <fromTex> <toTex>")
-			os.Exit(2)
-		}
-		err = retex(os.Args[2], os.Args[3], os.Args[4], os.Args[5])
-	default:
+	cmd, ok := findCommand(os.Args[1])
+	if !ok {
 		fmt.Fprintf(os.Stderr, "unknown command %q\n", os.Args[1])
 		os.Exit(2)
 	}
-	if err != nil {
+	if !slices.Contains(cmd.argc, len(os.Args)) {
+		fmt.Fprintln(os.Stderr, cmd.usage)
+		os.Exit(2)
+	}
+	if err := cmd.run(os.Args); err != nil {
 		fmt.Fprintln(os.Stderr, "error:", err)
 		os.Exit(1)
 	}

@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"regexp"
@@ -58,6 +60,14 @@ func scrapeThread(client *http.Client, url string, maxPages int, delay time.Dura
 }
 
 func fetch(client *http.Client, url string) (*goquery.Document, error) {
+	body, err := fetchBody(client, url)
+	if err != nil {
+		return nil, err
+	}
+	return goquery.NewDocumentFromReader(bytes.NewReader(body))
+}
+
+func fetchBody(client *http.Client, url string) ([]byte, error) {
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil, err
@@ -74,7 +84,7 @@ func fetch(client *http.Client, url string) (*goquery.Document, error) {
 		return nil, fmt.Errorf("HTTP %d for %s", resp.StatusCode, url)
 	}
 
-	return goquery.NewDocumentFromReader(resp.Body)
+	return io.ReadAll(resp.Body)
 }
 
 func parsePost(s *goquery.Selection) Post {
@@ -108,18 +118,29 @@ func nextPageURL(doc *goquery.Document) string {
 	if !exists {
 		return ""
 	}
-	if strings.HasPrefix(href, "/") {
-		if base, exists := doc.Find("link[rel=canonical]").Attr("href"); exists {
-			parts := strings.SplitN(base, "//", 2)
-			if len(parts) == 2 {
-				slashIdx := strings.Index(parts[1], "/")
-				if slashIdx > 0 {
-					return parts[0] + "//" + parts[1][:slashIdx] + href
-				}
-			}
-		}
+	if !strings.HasPrefix(href, "/") {
+		return href
+	}
+	if origin, ok := readCanonicalOrigin(doc); ok {
+		return origin + href
 	}
 	return href
+}
+
+func readCanonicalOrigin(doc *goquery.Document) (string, bool) {
+	base, exists := doc.Find("link[rel=canonical]").Attr("href")
+	if !exists {
+		return "", false
+	}
+	parts := strings.SplitN(base, "//", 2)
+	if len(parts) != 2 {
+		return "", false
+	}
+	slashIdx := strings.Index(parts[1], "/")
+	if slashIdx <= 0 {
+		return "", false
+	}
+	return parts[0] + "//" + parts[1][:slashIdx], true
 }
 
 func lastPageNumber(doc *goquery.Document) int {

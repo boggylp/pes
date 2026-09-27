@@ -39,27 +39,27 @@ func getBestMatch(targetName string, candidates map[string]struct{}) (string, bo
 	if len(targetParts) == 0 {
 		return "", false
 	}
-	targetSurname := targetParts[len(targetParts)-1]
 
+	bestMatch, bestScore, bestCount := pickBestCandidate(targetParts, targetNorm, candidates)
+	if bestMatch == "" {
+		return "", false
+	}
+	// A relaxed (differing part-count) match is only trusted when unambiguous:
+	// two players sharing first+last name must not be silently conflated.
+	if bestScore < scoreSamePartCount && bestCount > 1 {
+		return "", false
+	}
+	return bestMatch, true
+}
+
+func pickBestCandidate(targetParts []string, targetNorm string, candidates map[string]struct{}) (string, int, int) {
 	bestMatch := ""
 	bestScore := -1
 	bestCount := 0
-
 	for candidate := range candidates {
-		if abs(len(candidate)-len(targetNorm)) > 10 {
+		if !keepCandidate(targetParts, targetNorm, candidate) {
 			continue
 		}
-
-		// Surname must start with same character
-		candidateParts := strings.Fields(candidate)
-		if len(candidateParts) == 0 {
-			continue
-		}
-		candidateSurname := candidateParts[len(candidateParts)-1]
-		if targetSurname[0] != candidateSurname[0] {
-			continue
-		}
-
 		score, ok := calculateNameMatchScore(targetParts, targetNorm, candidate)
 		if !ok {
 			continue
@@ -73,16 +73,21 @@ func getBestMatch(targetName string, candidates map[string]struct{}) (string, bo
 			bestCount++
 		}
 	}
+	return bestMatch, bestScore, bestCount
+}
 
-	if bestMatch == "" {
-		return "", false
+func keepCandidate(targetParts []string, targetNorm, candidate string) bool {
+	if abs(len(candidate)-len(targetNorm)) > 10 {
+		return false
 	}
-	// A relaxed (differing part-count) match is only trusted when unambiguous:
-	// two players sharing first+last name must not be silently conflated.
-	if bestScore < scoreSamePartCount && bestCount > 1 {
-		return "", false
+	// Surname must start with same character
+	candidateParts := strings.Fields(candidate)
+	if len(candidateParts) == 0 {
+		return false
 	}
-	return bestMatch, true
+	targetSurname := targetParts[len(targetParts)-1]
+	candidateSurname := candidateParts[len(candidateParts)-1]
+	return targetSurname[0] == candidateSurname[0]
 }
 
 // Score tiers, ascending. Exact-name and equal-part-count matches outrank a
@@ -96,26 +101,31 @@ func calculateNameMatchScore(targetParts []string, targetNorm, candidateNorm str
 	if targetNorm == candidateNorm {
 		return 1000, true
 	}
-
 	candidateParts := strings.Fields(candidateNorm)
-
 	if len(targetParts) != len(candidateParts) {
-		// Relaxed fallback: a middle name on one side (e.g. "Dion Drena Beljo"
-		// vs "Dion Beljo") must not block the match. Require the surname to
-		// match exactly and the first name to be compatible; the ambiguity
-		// guard in getBestMatch rejects first+last collisions.
-		if len(targetParts) < 2 || len(candidateParts) < 2 {
-			return 0, false
-		}
-		if targetParts[len(targetParts)-1] != candidateParts[len(candidateParts)-1] {
-			return 0, false
-		}
-		if !firstNameCompatible(targetParts[0], candidateParts[0]) {
-			return 0, false
-		}
-		return scoreRelaxed, true
+		return scoreRelaxedMatch(targetParts, candidateParts)
 	}
+	return scoreSamePartCountMatch(targetParts, candidateParts)
+}
 
+// scoreRelaxedMatch keeps a middle name on one side (e.g. "Dion Drena Beljo"
+// vs "Dion Beljo") from blocking the match. It requires the surname to match
+// exactly and the first name to be compatible; the ambiguity guard in
+// getBestMatch rejects first+last collisions.
+func scoreRelaxedMatch(targetParts, candidateParts []string) (int, bool) {
+	if len(targetParts) < 2 || len(candidateParts) < 2 {
+		return 0, false
+	}
+	if targetParts[len(targetParts)-1] != candidateParts[len(candidateParts)-1] {
+		return 0, false
+	}
+	if !firstNameCompatible(targetParts[0], candidateParts[0]) {
+		return 0, false
+	}
+	return scoreRelaxed, true
+}
+
+func scoreSamePartCountMatch(targetParts, candidateParts []string) (int, bool) {
 	if len(targetParts) == 1 {
 		if targetParts[0] == candidateParts[0] {
 			return 100, true
@@ -130,23 +140,20 @@ func calculateNameMatchScore(targetParts []string, targetNorm, candidateNorm str
 
 	score := 0
 	for i := 0; i < len(targetParts)-1; i++ {
-		p1 := targetParts[i]
-		p2 := candidateParts[i]
-
-		if len(p1) == 1 || len(p2) == 1 {
-			if p1[0] != p2[0] {
-				return 0, false
-			}
-			score++
-		} else {
-			if p1 != p2 {
-				return 0, false
-			}
-			score += 10
+		partScore, ok := scoreGivenNamePart(targetParts[i], candidateParts[i])
+		if !ok {
+			return 0, false
 		}
+		score += partScore
 	}
-
 	return score + scoreSamePartCount, true
+}
+
+func scoreGivenNamePart(p1, p2 string) (int, bool) {
+	if len(p1) == 1 || len(p2) == 1 {
+		return 1, p1[0] == p2[0]
+	}
+	return 10, p1 == p2
 }
 
 // firstNameCompatible reports whether two first names plausibly denote the same

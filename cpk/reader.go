@@ -94,96 +94,122 @@ func (r *Reader) ReadFile(file File) ([]byte, error) {
 }
 
 func (r *Reader) load() error {
-	// CPK container at offset 0: 16 bytes -> "CPK ", marker, table-size, padding
-	tbl, err := r.readTableContainer(0, "CPK ")
-	if err != nil {
-		return fmt.Errorf("reading CPK header: %w", err)
-	}
-	headerTable, err := parseTable(tbl)
-	if err != nil {
-		return fmt.Errorf("parsing CPK header table: %w", err)
-	}
-
-	// Header table has exactly one row with TocOffset and ContentOffset.
-	// readNamedNumber walks the whole row and advances the row pointer, so each
-	// field needs a fresh rowReader; reusing one makes the second read start
-	// past the end of the row and return garbage (a huge ContentOffset, which
-	// then wrongly forces the absolute-offset rebase below).
-	tocRow, err := headerTable.row(0)
+	tocOffset, contentOffset, err := r.readHeaderOffsets()
 	if err != nil {
 		return err
-	}
-	tocOffset, err := readNamedNumber(tocRow, "TocOffset")
-	if err != nil {
-		return fmt.Errorf("CPK header: %w", err)
-	}
-	contentRow, err := headerTable.row(0)
-	if err != nil {
-		return err
-	}
-	contentOffset, err := readNamedNumber(contentRow, "ContentOffset")
-	if err != nil {
-		return fmt.Errorf("CPK header: %w", err)
-	}
-	// Some CPKs place files relative to the TOC instead of the explicit
-	// ContentOffset. CriFsV2Lib's TocFinder normalises this.
-	if tocOffset < contentOffset {
-		contentOffset = tocOffset
 	}
 	r.contentOffset = contentOffset
 
+	files, err := r.readTocFiles(tocOffset, contentOffset)
+	if err != nil {
+		return err
+	}
+	r.files = files
+	r.rebaseAbsoluteOffsets(contentOffset)
+	return nil
+}
+
+func (r *Reader) readHeaderOffsets() (int64, int64, error) {
+	// CPK container at offset 0: 16 bytes -> "CPK ", marker, table-size, padding
+	tbl, err := r.readTableContainer(0, "CPK ")
+	if err != nil {
+		return 0, 0, fmt.Errorf("reading CPK header: %w", err)
+	}
+	headerTable, err := parseTable(tbl)
+	if err != nil {
+		return 0, 0, fmt.Errorf("parsing CPK header table: %w", err)
+	}
+	tocOffset, err := readHeaderNumber(headerTable, "TocOffset")
+	if err != nil {
+		return 0, 0, err
+	}
+	contentOffset, err := readHeaderNumber(headerTable, "ContentOffset")
+	if err != nil {
+		return 0, 0, err
+	}
+	// Some CPKs place files relative to the TOC instead of the explicit
+	// ContentOffset. CriFsV2Lib's TocFinder normalises this.
+	return tocOffset, min(tocOffset, contentOffset), nil
+}
+
+// Header table has exactly one row with TocOffset and ContentOffset.
+// readNamedNumber walks the whole row and advances the row pointer, so each
+// field needs a fresh rowReader; reusing one makes the second read start
+// past the end of the row and return garbage (a huge ContentOffset, which
+// then wrongly forces the absolute-offset rebase below).
+func readHeaderNumber(headerTable *table, name string) (int64, error) {
+	row, err := headerTable.row(0)
+	if err != nil {
+		return 0, err
+	}
+	n, err := readNamedNumber(row, name)
+	if err != nil {
+		return 0, fmt.Errorf("CPK header: %w", err)
+	}
+	return n, nil
+}
+
+func (r *Reader) readTocFiles(tocOffset, contentOffset int64) ([]File, error) {
 	tocBuf, err := r.readTableContainer(tocOffset, "TOC ")
 	if err != nil {
-		return fmt.Errorf("reading TOC: %w", err)
+		return nil, fmt.Errorf("reading TOC: %w", err)
 	}
 	tocTable, err := parseTable(tocBuf)
 	if err != nil {
-		return fmt.Errorf("parsing TOC table: %w", err)
+		return nil, fmt.Errorf("parsing TOC table: %w", err)
 	}
 
-	r.files = make([]File, 0, tocTable.rowCount)
+	files := make([]File, 0, tocTable.rowCount)
 	for i := 0; i < tocTable.rowCount; i++ {
 		row, err := tocTable.row(i)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		file, err := readTocRow(row, contentOffset)
 		if err != nil {
-			return fmt.Errorf("TOC row %d: %w", i, err)
+			return nil, fmt.Errorf("TOC row %d: %w", i, err)
 		}
-		r.files = append(r.files, file)
+		files = append(files, file)
 	}
-	// Some PES season packs declare ContentOffset == TocOffset near the file
-	// end so FileOffsets are already absolute. If every entry's computed
-	// Offset+Size would land past EOF but the raw FileOffset would not,
-	// re-add the entries with contentOffset=0.
-	if st, err := r.f.Stat(); err == nil {
-		size := st.Size()
-		needFix := false
-		for _, f := range r.files {
-			if int64(f.Offset)+int64(f.Size) > size {
-				needFix = true
-				break
-			}
-		}
-		if needFix && contentOffset > 0 {
-			ok := true
-			for _, f := range r.files {
-				raw := int64(f.Offset) - contentOffset
-				if raw < 0 || raw+int64(f.Size) > size {
-					ok = false
-					break
-				}
-			}
-			if ok {
-				r.contentOffset = 0
-				for i := range r.files {
-					r.files[i].Offset -= contentOffset
-				}
-			}
+	return files, nil
+}
+
+// Some PES season packs declare ContentOffset == TocOffset near the file
+// end so FileOffsets are already absolute. If every entry's computed
+// Offset+Size would land past EOF but the raw FileOffset would not,
+// re-add the entries with contentOffset=0.
+func (r *Reader) rebaseAbsoluteOffsets(contentOffset int64) {
+	st, err := r.f.Stat()
+	if err != nil || contentOffset <= 0 {
+		return
+	}
+	size := st.Size()
+	if !anyFileEndPastEOF(r.files, size) || !allFilesFitShifted(r.files, contentOffset, size) {
+		return
+	}
+	r.contentOffset = 0
+	for i := range r.files {
+		r.files[i].Offset -= contentOffset
+	}
+}
+
+func anyFileEndPastEOF(files []File, size int64) bool {
+	for _, f := range files {
+		if f.Offset+int64(f.Size) > size {
+			return true
 		}
 	}
-	return nil
+	return false
+}
+
+func allFilesFitShifted(files []File, shift, size int64) bool {
+	for _, f := range files {
+		raw := f.Offset - shift
+		if raw < 0 || raw+int64(f.Size) > size {
+			return false
+		}
+	}
+	return true
 }
 
 func (r *Reader) readAt(offset int64, size int) ([]byte, error) {
@@ -215,49 +241,50 @@ func (r *Reader) readTableContainer(offset int64, want string) ([]byte, error) {
 	return r.readAt(offset+containerSize, tableSize)
 }
 
+type tocColumnReader func(r *rowReader, c column, f *File, contentOffset int64) error
+
+func readTocString(assign func(f *File, s string)) tocColumnReader {
+	return func(r *rowReader, c column, f *File, _ int64) error {
+		s, err := readStringInPlace(r, c)
+		if err != nil {
+			return err
+		}
+		assign(f, s)
+		return nil
+	}
+}
+
+func readTocNumber(assign func(f *File, n, contentOffset int64)) tocColumnReader {
+	return func(r *rowReader, c column, f *File, contentOffset int64) error {
+		n, err := readNumberInPlace(r, c)
+		if err != nil {
+			return err
+		}
+		assign(f, n, contentOffset)
+		return nil
+	}
+}
+
+var tocColumns = map[string]tocColumnReader{
+	"DirName":     readTocString(func(f *File, s string) { f.Dir = s }),
+	"FileName":    readTocString(func(f *File, s string) { f.Name = s }),
+	"UserString":  readTocString(func(f *File, s string) { f.UserString = s }),
+	"FileSize":    readTocNumber(func(f *File, n, _ int64) { f.Size = int(n) }),
+	"ExtractSize": readTocNumber(func(f *File, n, _ int64) { f.ExtractSize = int(n) }),
+	"FileOffset":  readTocNumber(func(f *File, n, contentOffset int64) { f.Offset = n + contentOffset }),
+}
+
 func readTocRow(r *rowReader, contentOffset int64) (File, error) {
 	// Walk columns in declaration order so the row pointer advances correctly.
 	var f File
 	for _, c := range r.tbl.columns {
-		switch c.name {
-		case "DirName":
-			s, err := readStringInPlace(r, c)
-			if err != nil {
-				return File{}, err
-			}
-			f.Dir = s
-		case "FileName":
-			s, err := readStringInPlace(r, c)
-			if err != nil {
-				return File{}, err
-			}
-			f.Name = s
-		case "FileSize":
-			n, err := readNumberInPlace(r, c)
-			if err != nil {
-				return File{}, err
-			}
-			f.Size = int(n)
-		case "ExtractSize":
-			n, err := readNumberInPlace(r, c)
-			if err != nil {
-				return File{}, err
-			}
-			f.ExtractSize = int(n)
-		case "FileOffset":
-			n, err := readNumberInPlace(r, c)
-			if err != nil {
-				return File{}, err
-			}
-			f.Offset = n + contentOffset
-		case "UserString":
-			s, err := readStringInPlace(r, c)
-			if err != nil {
-				return File{}, err
-			}
-			f.UserString = s
-		default:
+		read, ok := tocColumns[c.name]
+		if !ok {
 			r.skip(c)
+			continue
+		}
+		if err := read(r, c, &f, contentOffset); err != nil {
+			return File{}, err
 		}
 	}
 	if f.ExtractSize == 0 {

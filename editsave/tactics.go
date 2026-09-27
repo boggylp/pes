@@ -69,93 +69,59 @@ func cmdApplyTactics(args []string) int {
 		fs.PrintDefaults()
 		return 2
 	}
-	input := fs.Arg(0)
-
-	if err := runApplyTactics(input, *outFile, *toolsDir, *tacticsDir, *idListPath, *force, *allowLiveName); err != nil {
+	opts := applyTacticsOptions{
+		input:         fs.Arg(0),
+		outFile:       *outFile,
+		toolsDir:      *toolsDir,
+		tacticsDir:    *tacticsDir,
+		idListPath:    *idListPath,
+		force:         *force,
+		allowLiveName: *allowLiveName,
+	}
+	if err := runApplyTactics(opts); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 1
 	}
 	return 0
 }
 
-// runApplyTactics performs decrypt → patch tactics → encrypt entirely
-// within one process. The decrypted intermediate is held in a temp dir
-// that is unconditionally removed before return; never let the temp dir
-// outlive the process because decrypter21 output is session-coupled and
-// can't be re-encrypted by a later run.
-func runApplyTactics(input, outFile, toolsDir, tacticsDir, idListPath string, force, allowLiveName bool) error {
-	tools, err := resolveTools(toolsDir)
+type applyTacticsOptions struct {
+	input         string
+	outFile       string
+	toolsDir      string
+	tacticsDir    string
+	idListPath    string
+	force         bool
+	allowLiveName bool
+}
+
+func runApplyTactics(opts applyTacticsOptions) error {
+	tools, err := resolveTools(opts.toolsDir)
 	if err != nil {
 		return err
 	}
-	if err := ensureSafeOutFile(outFile, force, allowLiveName); err != nil {
+	if err := ensureSafeOutFile(opts.outFile, opts.force, opts.allowLiveName); err != nil {
 		return err
 	}
-	entries, err := parseIDList(idListPath)
+	entries, err := parseIDList(opts.idListPath)
 	if err != nil {
-		return fmt.Errorf("parsing %s: %w", idListPath, err)
+		return fmt.Errorf("parsing %s: %w", opts.idListPath, err)
 	}
 	if len(entries) == 0 {
 		return errors.New("id-list contains no entries")
 	}
-
-	work, err := os.MkdirTemp("", "editsave-apply-*")
-	if err != nil {
-		return fmt.Errorf("mkdir temp: %w", err)
-	}
-	defer func() {
-		if rmErr := os.RemoveAll(work); rmErr != nil {
-			fmt.Fprintf(os.Stderr, "warning: failed to remove work dir %s: %v\n", work, rmErr)
+	return patchSave(tools, opts.input, opts.outFile, "editsave-apply-*", func(data []byte, slots map[uint32]int) error {
+		applied, skipped, missing, err := applyTacticsToData(data, slots, entries, opts.tacticsDir)
+		if err != nil {
+			return err
 		}
-	}()
-
-	decDir := filepath.Join(work, "dec")
-	if err := os.Mkdir(decDir, 0o755); err != nil {
-		return err
-	}
-	if err := runDecrypter(tools, input, decDir); err != nil {
-		return fmt.Errorf("stage 1 (decrypt): %w", err)
-	}
-	if err := verifyDecryptedDir(decDir); err != nil {
-		return fmt.Errorf("stage 1 verify: %w", err)
-	}
-
-	dataPath := filepath.Join(decDir, "data.dat")
-	data, err := os.ReadFile(dataPath)
-	if err != nil {
-		return fmt.Errorf("reading data.dat: %w", err)
-	}
-
-	slots, sectionStart, sectionEnd, err := scanTacticsSection(data)
-	if err != nil {
-		return fmt.Errorf("scanning tactics section: %w", err)
-	}
-	fmt.Fprintf(os.Stderr, "tactics section: [0x%08x..0x%08x) = %d slots\n",
-		sectionStart, sectionEnd, len(slots))
-
-	applied, skipped, missing, err := applyTacticsToData(data, slots, entries, tacticsDir)
-	if err != nil {
-		return err
-	}
-	fmt.Fprintf(os.Stderr, "applied: %d, skipped (team_id absent from save): %d, missing tactics files: %d\n",
-		applied, skipped, missing)
-	if applied == 0 {
-		return fmt.Errorf("no tactics applied (skipped=%d, missing=%d); refusing to encrypt an unchanged save", skipped, missing)
-	}
-
-	if err := os.WriteFile(dataPath, data, 0o644); err != nil {
-		return fmt.Errorf("writing modified data.dat: %w", err)
-	}
-
-	if err := encrypterToFileAtomic(tools, decDir, outFile); err != nil {
-		return fmt.Errorf("stage 2 (encrypt): %w", err)
-	}
-	info, err := os.Stat(outFile)
-	if err != nil {
-		return fmt.Errorf("encrypter ran but output missing: %w", err)
-	}
-	fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", outFile, info.Size())
-	return nil
+		fmt.Fprintf(os.Stderr, "applied: %d, skipped (team_id absent from save): %d, missing tactics files: %d\n",
+			applied, skipped, missing)
+		if applied == 0 {
+			return fmt.Errorf("no tactics applied (skipped=%d, missing=%d); refusing to encrypt an unchanged save", skipped, missing)
+		}
+		return nil
+	})
 }
 
 // parseIDList reads zlac's id_list.txt format:
@@ -179,39 +145,48 @@ func parseIDList(path string) ([]tacticsListEntry, error) {
 	var entries []tacticsListEntry
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
-		raw := scanner.Text()
-		// Skip whole-line comments and blanks BEFORE splitting on
-		// comma, so the line-level `#` strip never bites into a
-		// filename that contains a `#`.
-		trimmed := strings.TrimSpace(raw)
-		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
-			continue
-		}
-		parts := strings.SplitN(trimmed, ",", 2)
-		if len(parts) != 2 {
-			return nil, fmt.Errorf("expected `team_id, filename`, got %q", raw)
-		}
-		tid64, err := strconv.ParseUint(strings.TrimSpace(parts[0]), 10, 32)
+		entry, ok, err := parseIDListLine(scanner.Text())
 		if err != nil {
-			return nil, fmt.Errorf("bad team_id in %q: %w", raw, err)
+			return nil, err
 		}
-		fname := parts[1]
-		// Strip an inline trailing comment from the filename field,
-		// but only when the `#` is preceded by whitespace; that lets a
-		// filename legitimately containing `#` survive.
-		if i := indexCommentDelim(fname); i >= 0 {
-			fname = fname[:i]
+		if ok {
+			entries = append(entries, entry)
 		}
-		fname = strings.TrimSpace(fname)
-		if fname == "" {
-			return nil, fmt.Errorf("empty filename in %q", raw)
-		}
-		entries = append(entries, tacticsListEntry{teamID: uint32(tid64), fileName: fname})
 	}
 	if err := scanner.Err(); err != nil {
 		return nil, err
 	}
 	return entries, nil
+}
+
+func parseIDListLine(raw string) (tacticsListEntry, bool, error) {
+	// Skip whole-line comments and blanks BEFORE splitting on
+	// comma, so the line-level `#` strip never bites into a
+	// filename that contains a `#`.
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+		return tacticsListEntry{}, false, nil
+	}
+	parts := strings.SplitN(trimmed, ",", 2)
+	if len(parts) != 2 {
+		return tacticsListEntry{}, false, fmt.Errorf("expected `team_id, filename`, got %q", raw)
+	}
+	tid64, err := strconv.ParseUint(strings.TrimSpace(parts[0]), 10, 32)
+	if err != nil {
+		return tacticsListEntry{}, false, fmt.Errorf("bad team_id in %q: %w", raw, err)
+	}
+	fname := parts[1]
+	// Strip an inline trailing comment from the filename field,
+	// but only when the `#` is preceded by whitespace; that lets a
+	// filename legitimately containing `#` survive.
+	if i := indexCommentDelim(fname); i >= 0 {
+		fname = fname[:i]
+	}
+	fname = strings.TrimSpace(fname)
+	if fname == "" {
+		return tacticsListEntry{}, false, fmt.Errorf("empty filename in %q", raw)
+	}
+	return tacticsListEntry{teamID: uint32(tid64), fileName: fname}, true, nil
 }
 
 // indexCommentDelim returns the index of the first `#` that is
@@ -368,29 +343,14 @@ func applyTacticsToData(data []byte, slots map[uint32]int, entries []tacticsList
 			fmt.Fprintf(os.Stderr, "  skip team_id=%d: not present in save\n", e.teamID)
 			continue
 		}
-		path := filepath.Join(tacticsDir, e.fileName)
-		body, err := os.ReadFile(path)
+		body, found, err := readTacticsFile(tacticsDir, e.fileName)
 		if err != nil {
-			if os.IsNotExist(err) {
-				missing++
-				fmt.Fprintf(os.Stderr, "  missing tactics file: %s\n", e.fileName)
-				continue
-			}
-			return applied, skipped, missing, fmt.Errorf("reading %s: %w", path, err)
+			return applied, skipped, missing, err
 		}
-		if len(body) != tacticsSlotSize {
-			return applied, skipped, missing, fmt.Errorf("%s: expected %d bytes, got %d", e.fileName, tacticsSlotSize, len(body))
-		}
-		// Defensive: source .PES2021_tactics files in the wild vary at
-		// bytes 5..6 (formation variant / tactic count). The only
-		// universal invariants are size == 628 (checked above) and a
-		// plausible team_id at bytes 0..3. Reject obvious garbage.
-		fileTID := binary.LittleEndian.Uint32(body[:4])
-		if fileTID == 0 || fileTID > tacticsTeamIDMax {
-			return applied, skipped, missing, fmt.Errorf("%s: implausible team_id=%d in file header", e.fileName, fileTID)
-		}
-		if body[4] != 0x00 {
-			return applied, skipped, missing, fmt.Errorf("%s: expected byte 4 == 0x00, got 0x%02x", e.fileName, body[4])
+		if !found {
+			missing++
+			fmt.Fprintf(os.Stderr, "  missing tactics file: %s\n", e.fileName)
+			continue
 		}
 		// Stamp the target team_id over the file's internal one so the
 		// slot header stays consistent with its position in data.dat.
@@ -401,4 +361,37 @@ func applyTacticsToData(data []byte, slots map[uint32]int, entries []tacticsList
 		applied++
 	}
 	return applied, skipped, missing, nil
+}
+
+func readTacticsFile(tacticsDir, fileName string) ([]byte, bool, error) {
+	path := filepath.Join(tacticsDir, fileName)
+	body, err := os.ReadFile(path)
+	if os.IsNotExist(err) {
+		return nil, false, nil
+	}
+	if err != nil {
+		return nil, false, fmt.Errorf("reading %s: %w", path, err)
+	}
+	if err := checkTacticsFile(fileName, body); err != nil {
+		return nil, false, err
+	}
+	return body, true, nil
+}
+
+func checkTacticsFile(fileName string, body []byte) error {
+	if len(body) != tacticsSlotSize {
+		return fmt.Errorf("%s: expected %d bytes, got %d", fileName, tacticsSlotSize, len(body))
+	}
+	// Defensive: source .PES2021_tactics files in the wild vary at
+	// bytes 5..6 (formation variant / tactic count). The only
+	// universal invariants are size == 628 (checked above) and a
+	// plausible team_id at bytes 0..3. Reject obvious garbage.
+	fileTID := binary.LittleEndian.Uint32(body[:4])
+	if fileTID == 0 || fileTID > tacticsTeamIDMax {
+		return fmt.Errorf("%s: implausible team_id=%d in file header", fileName, fileTID)
+	}
+	if body[4] != 0x00 {
+		return fmt.Errorf("%s: expected byte 4 == 0x00, got 0x%02x", fileName, body[4])
+	}
+	return nil
 }

@@ -99,7 +99,10 @@ func rewriteFaceFolderID(folder, newID string) error {
 	if len(oldID) != len(newID) {
 		return aliasFaceTextures(folder, oldID)
 	}
+	return replaceEmbeddedID(pkgs, oldID, newID)
+}
 
+func replaceEmbeddedID(pkgs []string, oldID, newID string) error {
 	old := []byte("face/real/" + oldID + "/")
 	nw := []byte("face/real/" + newID + "/")
 	rewrote := false

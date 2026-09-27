@@ -110,25 +110,9 @@ func runRoster(args []string) error {
 	}
 	fmt.Fprintf(os.Stderr, "base players: %d\n", len(base))
 
-	combined := make(map[uint32]player, len(base))
-	for k, v := range base {
-		combined[k] = v
-	}
-	if *editPath != "" {
-		edits, err := parseEditData(*editPath)
-		if err != nil {
-			return fmt.Errorf("parse edit save: %w", err)
-		}
-		overlap := 0
-		for k := range edits {
-			if _, ok := base[k]; ok {
-				overlap++
-			}
-		}
-		for k, v := range edits {
-			combined[k] = v
-		}
-		fmt.Fprintf(os.Stderr, "EDIT-save adds: %d (overlap with base: %d)\n", len(edits), overlap)
+	combined, err := mergeEditSave(base, *editPath)
+	if err != nil {
+		return err
 	}
 
 	if err := writeCSV(*outPath, combined); err != nil {
@@ -136,6 +120,29 @@ func runRoster(args []string) error {
 	}
 	fmt.Fprintf(os.Stderr, "wrote %d rows -> %s\n", len(combined), *outPath)
 	return nil
+}
+
+func mergeEditSave(base map[uint32]player, editPath string) (map[uint32]player, error) {
+	combined := make(map[uint32]player, len(base))
+	for k, v := range base {
+		combined[k] = v
+	}
+	if editPath == "" {
+		return combined, nil
+	}
+	edits, err := parseEditData(editPath)
+	if err != nil {
+		return nil, fmt.Errorf("parse edit save: %w", err)
+	}
+	overlap := 0
+	for k, v := range edits {
+		if _, ok := base[k]; ok {
+			overlap++
+		}
+		combined[k] = v
+	}
+	fmt.Fprintf(os.Stderr, "EDIT-save adds: %d (overlap with base: %d)\n", len(edits), overlap)
+	return combined, nil
 }
 
 func parsePlayerBin(path string) (map[uint32]player, error) {
@@ -182,22 +189,25 @@ const (
 	recordsUntilSentinel
 )
 
+type recordVerdict int
+
+const (
+	recordKeep recordVerdict = iota
+	recordSkip
+	recordStop
+)
+
 func parseRecords(buf []byte, start int, mode int, idOff, nameOff, shirtOff int) map[uint32]player {
 	out := map[uint32]player{}
 	for i := start; i+recordStride <= len(buf); i += recordStride {
 		rec := buf[i : i+recordStride]
 		pid := binary.LittleEndian.Uint32(rec[idOff:])
-		if mode == recordsUntilSentinel {
-			// EDIT save: stop at first invalid record so we don't run into
-			// the team/stadium/coach sections that follow players.
-			pid2 := binary.LittleEndian.Uint32(rec[idOff+4:])
-			if pid == 0 || pid == 0xFFFFFFFF || pid != pid2 || pid > 10_000_000 {
-				break
-			}
-		} else {
-			if pid == 0 || pid > 10_000_000 {
-				continue
-			}
+		verdict := classifyRecordID(rec, mode, idOff, pid)
+		if verdict == recordStop {
+			break
+		}
+		if verdict == recordSkip {
+			continue
 		}
 		name := readCString(rec, nameOff, 32)
 		if name == "" {
@@ -207,6 +217,22 @@ func parseRecords(buf []byte, start int, mode int, idOff, nameOff, shirtOff int)
 		out[pid] = player{name: name, shirt: shirt}
 	}
 	return out
+}
+
+func classifyRecordID(rec []byte, mode int, idOff int, pid uint32) recordVerdict {
+	if mode != recordsUntilSentinel {
+		if pid == 0 || pid > 10_000_000 {
+			return recordSkip
+		}
+		return recordKeep
+	}
+	// EDIT save: stop at first invalid record so we don't run into
+	// the team/stadium/coach sections that follow players.
+	pid2 := binary.LittleEndian.Uint32(rec[idOff+4:])
+	if pid == 0 || pid == 0xFFFFFFFF || pid != pid2 || pid > 10_000_000 {
+		return recordStop
+	}
+	return recordKeep
 }
 
 func readCString(rec []byte, off, max int) string {

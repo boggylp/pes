@@ -286,7 +286,7 @@ func TestApplyTacticsToData(t *testing.T) {
 
 	entries := []tacticsListEntry{
 		{teamID: 5, fileName: "5-England.PES2021_tactics"},
-		{teamID: 8, fileName: "8-Belgium.PES2021_tactics"}, // file not present
+		{teamID: 8, fileName: "8-Belgium.PES2021_tactics"},    // file not present
 		{teamID: 9999, fileName: "9999-Nope.PES2021_tactics"}, // team not in save
 	}
 	applied, skipped, missing, err := applyTacticsToData(data, slots, entries, dir)

@@ -57,92 +57,111 @@ func criLaylaDecompress(in []byte) ([]byte, error) {
 	out := make([]byte, uncompressedSize+rawPrefixSize)
 	copy(out[:rawPrefixSize], in[headerSize+compressedSize:headerSize+compressedSize+rawPrefixSize])
 
-	// The bitstream lives in [headerSize, headerSize+compressedSize). We read
-	// it MSB-first, byte-by-byte from the end. `bitPos` is the absolute bit
-	// index from the *start* of the bitstream of the next bit to consume,
-	// counting from the high end (so reading "the next bit" means consuming
-	// the byte at headerSize + compressedSize - 1 - bitPos/8 and selecting
-	// bit (bitPos & 7) from its low end).
-	bitPos := 0
-	totalBits := compressedSize * 8
-
-	readBit := func() (byte, error) {
-		if bitPos >= totalBits {
-			return 0, fmt.Errorf("CRILAYLA bitstream underrun at bit %d", bitPos)
-		}
-		bytePos := headerSize + compressedSize - 1 - bitPos/8
-		b := (in[bytePos] >> uint(bitPos&7)) & 1
-		bitPos++
-		return b, nil
-	}
-	readBits := func(n int) (uint32, error) {
-		var v uint32
-		for i := 0; i < n; i++ {
-			b, err := readBit()
-			if err != nil {
-				return 0, err
-			}
-			v = (v << 1) | uint32(b)
-		}
-		return v, nil
-	}
-
-	// Variable-length copy length encoding: 2 then 3 then 5 then 8 bits, with
-	// each "max" rolling forward into the next bucket.
-	vleLengths := []int{2, 3, 5, 8}
-
+	br := &laylaBitReader{in: in, last: headerSize + compressedSize - 1, totalBits: compressedSize * 8}
 	writePos := uncompressedSize + rawPrefixSize - 1
 	for writePos >= rawPrefixSize {
-		flag, err := readBit()
+		var err error
+		writePos, err = decodeLaylaToken(br, out, writePos)
 		if err != nil {
 			return nil, err
-		}
-		if flag == 0 {
-			// Literal byte: 8 bits.
-			b, err := readBits(8)
-			if err != nil {
-				return nil, err
-			}
-			out[writePos] = byte(b)
-			writePos--
-			continue
-		}
-		// Copy: 13-bit offset (added to current write+1 in a sliding-window
-		// scheme) plus a variable-length count >= 3.
-		off, err := readBits(13)
-		if err != nil {
-			return nil, err
-		}
-		length := 3
-		bucket := 0
-		for {
-			n := vleLengths[bucket]
-			v, err := readBits(n)
-			if err != nil {
-				return nil, err
-			}
-			length += int(v)
-			max := (1 << uint(n)) - 1
-			if int(v) != max {
-				break
-			}
-			if bucket+1 < len(vleLengths) {
-				bucket++
-			}
-		}
-		// Output is being filled backwards, so the back-reference reads from
-		// later in the buffer (writePos+1+off) and copies forward in time
-		// while writePos walks down.
-		src := writePos + 1 + int(off)
-		for i := 0; i < length; i++ {
-			if src >= len(out) || writePos < 0 {
-				return nil, fmt.Errorf("CRILAYLA copy out of bounds (src=%d writePos=%d len=%d)", src, writePos, length)
-			}
-			out[writePos] = out[src]
-			writePos--
-			src--
 		}
 	}
-
 	return out, nil
+}
+
+// laylaBitReader reads the bitstream in [headerSize, headerSize+compressedSize)
+// MSB-first, byte-by-byte from the end. `bitPos` is the absolute bit index
+// from the *start* of the bitstream of the next bit to consume, counting from
+// the high end (so reading "the next bit" means consuming the byte at
+// last - bitPos/8 and selecting bit (bitPos & 7) from its low end).
+type laylaBitReader struct {
+	in        []byte
+	last      int
+	bitPos    int
+	totalBits int
+}
+
+func (br *laylaBitReader) readBit() (byte, error) {
+	if br.bitPos >= br.totalBits {
+		return 0, fmt.Errorf("CRILAYLA bitstream underrun at bit %d", br.bitPos)
+	}
+	b := (br.in[br.last-br.bitPos/8] >> uint(br.bitPos&7)) & 1
+	br.bitPos++
+	return b, nil
+}
+
+func (br *laylaBitReader) readBits(n int) (uint32, error) {
+	var v uint32
+	for i := 0; i < n; i++ {
+		b, err := br.readBit()
+		if err != nil {
+			return 0, err
+		}
+		v = (v << 1) | uint32(b)
+	}
+	return v, nil
+}
+
+// Variable-length copy length encoding: 2 then 3 then 5 then 8 bits, with
+// each "max" rolling forward into the next bucket.
+var laylaLengthBuckets = []int{2, 3, 5, 8}
+
+func (br *laylaBitReader) readCopyLength() (int, error) {
+	length := 3
+	bucket := 0
+	for {
+		n := laylaLengthBuckets[bucket]
+		v, err := br.readBits(n)
+		if err != nil {
+			return 0, err
+		}
+		length += int(v)
+		if int(v) != (1<<uint(n))-1 {
+			return length, nil
+		}
+		if bucket+1 < len(laylaLengthBuckets) {
+			bucket++
+		}
+	}
+}
+
+func decodeLaylaToken(br *laylaBitReader, out []byte, writePos int) (int, error) {
+	flag, err := br.readBit()
+	if err != nil {
+		return 0, err
+	}
+	if flag == 0 {
+		b, err := br.readBits(8)
+		if err != nil {
+			return 0, err
+		}
+		out[writePos] = byte(b)
+		return writePos - 1, nil
+	}
+	return copyLaylaBackReference(br, out, writePos)
+}
+
+// A copy is a 13-bit offset (added to current write+1 in a sliding-window
+// scheme) plus a variable-length count >= 3. Output is being filled
+// backwards, so the back-reference reads from later in the buffer
+// (writePos+1+off) and copies forward in time while writePos walks down.
+func copyLaylaBackReference(br *laylaBitReader, out []byte, writePos int) (int, error) {
+	off, err := br.readBits(13)
+	if err != nil {
+		return 0, err
+	}
+	length, err := br.readCopyLength()
+	if err != nil {
+		return 0, err
+	}
+	src := writePos + 1 + int(off)
+	for i := 0; i < length; i++ {
+		if src >= len(out) || writePos < 0 {
+			return 0, fmt.Errorf("CRILAYLA copy out of bounds (src=%d writePos=%d len=%d)", src, writePos, length)
+		}
+		out[writePos] = out[src]
+		writePos--
+		src--
+	}
+	return writePos, nil
 }

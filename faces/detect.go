@@ -41,51 +41,41 @@ func detect(facesDir, playerCSV string) []Issue {
 		if !entry.IsDir() {
 			continue
 		}
-		folder := entry.Name()
-
-		if !numericFolderRe.MatchString(folder) {
-			issues = append(issues, checkNonNumeric(facesDir, folder, players))
-			continue
-		}
-
-		baseID := suffixRe.ReplaceAllString(folder, "")
-		isDuplicate := folder != baseID
-
-		if _, ok := players[baseID]; !ok {
-			issues = append(issues, Issue{
-				Type:   "orphan",
-				Folder: folder,
-				BaseID: baseID,
-			})
-			continue
-		}
-
-		fpkPath := filepath.Join(facesDir, folder, "#Win", "face.fpk")
-		if _, err := os.Stat(fpkPath); os.IsNotExist(err) {
-			issues = append(issues, Issue{
-				Type:         "no_fpk",
-				Folder:       folder,
-				BaseID:       baseID,
-				FolderPlayer: players[baseID],
-			})
-			continue
-		}
-
-		embeddedID := extractFPKInternalID(fpkPath)
-		if embeddedID != "" && embeddedID != baseID {
-			issues = append(issues, Issue{
-				Type:           "id_mismatch",
-				Folder:         folder,
-				BaseID:         baseID,
-				FolderPlayer:   players[baseID],
-				EmbeddedID:     embeddedID,
-				EmbeddedPlayer: players[embeddedID],
-				IsDuplicate:    isDuplicate,
-			})
+		if issue, ok := checkFolder(facesDir, entry.Name(), players); ok {
+			issues = append(issues, issue)
 		}
 	}
-
 	return issues
+}
+
+func checkFolder(facesDir, folder string, players map[string]string) (Issue, bool) {
+	if !numericFolderRe.MatchString(folder) {
+		return checkNonNumeric(facesDir, folder, players), true
+	}
+
+	baseID := suffixRe.ReplaceAllString(folder, "")
+	if _, ok := players[baseID]; !ok {
+		return Issue{Type: "orphan", Folder: folder, BaseID: baseID}, true
+	}
+
+	fpkPath := filepath.Join(facesDir, folder, "#Win", "face.fpk")
+	if _, err := os.Stat(fpkPath); os.IsNotExist(err) {
+		return Issue{Type: "no_fpk", Folder: folder, BaseID: baseID, FolderPlayer: players[baseID]}, true
+	}
+
+	embeddedID := extractFPKInternalID(fpkPath)
+	if embeddedID == "" || embeddedID == baseID {
+		return Issue{}, false
+	}
+	return Issue{
+		Type:           "id_mismatch",
+		Folder:         folder,
+		BaseID:         baseID,
+		FolderPlayer:   players[baseID],
+		EmbeddedID:     embeddedID,
+		EmbeddedPlayer: players[embeddedID],
+		IsDuplicate:    folder != baseID,
+	}, true
 }
 
 func checkNonNumeric(facesDir, folder string, players map[string]string) Issue {
@@ -149,79 +139,70 @@ func printReport(issues []Issue) {
 		return
 	}
 
-	var mismatches, orphans, nonNumeric, noFPK []Issue
+	byType := map[string][]Issue{}
 	for _, i := range issues {
-		switch i.Type {
-		case "id_mismatch":
-			mismatches = append(mismatches, i)
-		case "orphan":
-			orphans = append(orphans, i)
-		case "non_numeric":
-			nonNumeric = append(nonNumeric, i)
-		case "no_fpk":
-			noFPK = append(noFPK, i)
-		}
+		byType[i.Type] = append(byType[i.Type], i)
 	}
 
 	fmt.Printf("Found %d issue(s):\n\n", len(issues))
+	printMismatches(byType["id_mismatch"])
+	printIssueSection(byType["orphan"], "ORPHAN FOLDERS",
+		"Folder ID does not exist in the player CSV. Face won't be used by the game.",
+		func(o Issue) string { return fmt.Sprintf("%s (ID %s not in CSV)", o.Folder, o.BaseID) })
+	printIssueSection(byType["non_numeric"], "NON-NUMERIC FOLDERS",
+		"Folder name is not a valid player ID. The game won't load these.",
+		func(n Issue) string { return n.Folder + describeNonNumeric(n) })
+	printIssueSection(byType["no_fpk"], "MISSING FPK",
+		"Face folder exists but has no face.fpk file.",
+		func(n Issue) string { return fmt.Sprintf("%s (%s)", n.Folder, n.FolderPlayer) })
+}
 
-	if len(mismatches) > 0 {
-		fmt.Printf("== FPK ID MISMATCHES (%d) ==\n", len(mismatches))
-		fmt.Println("Face folder says one player, but the FPK file internally references another.")
-		fmt.Println()
-		for _, m := range mismatches {
-			dup := ""
-			if m.IsDuplicate {
-				dup = " (duplicate folder)"
-			}
-			fmt.Printf("  %s%s\n", m.Folder, dup)
-			fmt.Printf("    Folder expects: %s\n", lookupPlayer(map[string]string{m.BaseID: m.FolderPlayer}, m.BaseID))
-			embPlayers := map[string]string{}
-			if m.EmbeddedPlayer != "" {
-				embPlayers[m.EmbeddedID] = m.EmbeddedPlayer
-			}
-			fmt.Printf("    FPK contains:   %s\n", lookupPlayer(embPlayers, m.EmbeddedID))
-			fmt.Println()
-		}
+func printMismatches(mismatches []Issue) {
+	if len(mismatches) == 0 {
+		return
 	}
-
-	if len(orphans) > 0 {
-		fmt.Printf("== ORPHAN FOLDERS (%d) ==\n", len(orphans))
-		fmt.Println("Folder ID does not exist in the player CSV. Face won't be used by the game.")
-		fmt.Println()
-		for _, o := range orphans {
-			fmt.Printf("  %s (ID %s not in CSV)\n", o.Folder, o.BaseID)
+	fmt.Printf("== FPK ID MISMATCHES (%d) ==\n", len(mismatches))
+	fmt.Println("Face folder says one player, but the FPK file internally references another.")
+	fmt.Println()
+	for _, m := range mismatches {
+		dup := ""
+		if m.IsDuplicate {
+			dup = " (duplicate folder)"
 		}
-		fmt.Println()
-	}
-
-	if len(nonNumeric) > 0 {
-		fmt.Printf("== NON-NUMERIC FOLDERS (%d) ==\n", len(nonNumeric))
-		fmt.Println("Folder name is not a valid player ID. The game won't load these.")
-		fmt.Println()
-		for _, n := range nonNumeric {
-			info := ""
-			if n.EmbeddedID != "" {
-				name := ""
-				if n.EmbeddedPlayer != "" {
-					name = " (" + n.EmbeddedPlayer + ")"
-				}
-				info = fmt.Sprintf(" -> FPK references ID %s%s", n.EmbeddedID, name)
-			} else if !n.HasFPK {
-				info = " (no face.fpk)"
-			}
-			fmt.Printf("  %s%s\n", n.Folder, info)
+		fmt.Printf("  %s%s\n", m.Folder, dup)
+		fmt.Printf("    Folder expects: %s\n", lookupPlayer(map[string]string{m.BaseID: m.FolderPlayer}, m.BaseID))
+		embPlayers := map[string]string{}
+		if m.EmbeddedPlayer != "" {
+			embPlayers[m.EmbeddedID] = m.EmbeddedPlayer
 		}
+		fmt.Printf("    FPK contains:   %s\n", lookupPlayer(embPlayers, m.EmbeddedID))
 		fmt.Println()
 	}
+}
 
-	if len(noFPK) > 0 {
-		fmt.Printf("== MISSING FPK (%d) ==\n", len(noFPK))
-		fmt.Println("Face folder exists but has no face.fpk file.")
-		fmt.Println()
-		for _, n := range noFPK {
-			fmt.Printf("  %s (%s)\n", n.Folder, n.FolderPlayer)
-		}
-		fmt.Println()
+func printIssueSection(issues []Issue, title, blurb string, line func(Issue) string) {
+	if len(issues) == 0 {
+		return
 	}
+	fmt.Printf("== %s (%d) ==\n", title, len(issues))
+	fmt.Println(blurb)
+	fmt.Println()
+	for _, i := range issues {
+		fmt.Printf("  %s\n", line(i))
+	}
+	fmt.Println()
+}
+
+func describeNonNumeric(n Issue) string {
+	if n.EmbeddedID == "" {
+		if !n.HasFPK {
+			return " (no face.fpk)"
+		}
+		return ""
+	}
+	name := ""
+	if n.EmbeddedPlayer != "" {
+		name = " (" + n.EmbeddedPlayer + ")"
+	}
+	return fmt.Sprintf(" -> FPK references ID %s%s", n.EmbeddedID, name)
 }

@@ -120,7 +120,16 @@ func copyTree(src, dst string) error {
 	})
 }
 
-func cmdKits(args []string) {
+type kitsOptions struct {
+	kservSrc string
+	out      string
+	mapPath  string
+	label    string
+	leagues  []string
+	cpkPath  string
+}
+
+func parseKitsFlags(args []string) kitsOptions {
 	fset := flag.NewFlagSet("kits", flag.ExitOnError)
 	kservSrc := fset.String("kserv-src", "", "kitserver config tree: dir holding map.txt and <League>/<Team>/ folders")
 	out := fset.String("out", "", "output pack directory")
@@ -135,102 +144,170 @@ func cmdKits(args []string) {
 		fmt.Fprintln(os.Stderr, "usage: cpk kits --kserv-src <dir> --out <dir> [--map <file>] [--leagues A,B ...] <uniform.cpk>")
 		os.Exit(1)
 	}
-
 	mp := *mapPath
 	if mp == "" {
 		mp = filepath.Join(*kservSrc, "map.txt")
 	}
-	entries, err := parseKitMap(mp)
+	return kitsOptions{kservSrc: *kservSrc, out: *out, mapPath: mp, label: *label, leagues: leagues, cpkPath: fset.Arg(0)}
+}
+
+func cmdKits(args []string) {
+	opts := parseKitsFlags(args)
+	entries, err := parseKitMap(opts.mapPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "map: %v\n", err)
 		os.Exit(1)
 	}
-	r, err := Open(fset.Arg(0))
+	r, err := Open(opts.cpkPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "open: %v\n", err)
 		os.Exit(1)
 	}
 	defer func() { _ = r.Close() }()
 
-	want := map[string]bool{}
-	for _, l := range leagues {
-		want[strings.ToLower(l)] = true
-	}
-	if err := os.MkdirAll(*out, 0755); err != nil {
+	if err := os.MkdirAll(opts.out, 0755); err != nil {
 		fmt.Fprintf(os.Stderr, "mkdir: %v\n", err)
 		os.Exit(1)
 	}
 
-	fam := buildFamilyIndex(r)
-
-	var mapBuf strings.Builder
-	fmt.Fprintf(&mapBuf, "# %s\n# team-id, \"League\\Team\"\n\n", *label)
-	var teams, tex, missing int
-	for _, e := range entries {
-		if len(want) > 0 && !want[strings.ToLower(e.league)] {
-			continue
-		}
-		srcTeam := filepath.Join(*kservSrc, e.league, e.team)
-		if fi, err := os.Stat(srcTeam); err != nil || !fi.IsDir() {
-			continue
-		}
-		dstTeam := filepath.Join(*out, e.league, e.team)
-		if err := copyTree(srcTeam, dstTeam); err != nil {
-			fmt.Fprintf(os.Stderr, "copy %s: %v\n", e.rel, err)
-			os.Exit(1)
-		}
-		err := filepath.WalkDir(dstTeam, func(p string, d fs.DirEntry, err error) error {
-			if err != nil || d.IsDir() || d.Name() != "config.txt" {
-				return err
-			}
-			names, kitFile, err := configTextures(p)
-			if err != nil {
-				return err
-			}
-			want := append(names, fam[strings.ToLower(kitFile)]...)
-			seen := map[string]bool{}
-			for _, n := range want {
-				key := strings.ToLower(n)
-				if n == "" || seen[key] {
-					continue
-				}
-				seen[key] = true
-				f, ok := r.FindFile(uniformTexDir + n + ".ftex")
-				if !ok {
-					missing++
-					continue
-				}
-				data, err := r.ReadFile(*f)
-				if err != nil {
-					missing++
-					continue
-				}
-				if err := os.WriteFile(filepath.Join(filepath.Dir(p), n+".ftex"), data, 0644); err != nil {
-					return err
-				}
-				tex++
-			}
-			return nil
-		})
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "textures %s: %v\n", e.rel, err)
-			os.Exit(1)
-		}
-		fmt.Fprintf(&mapBuf, "%s, \"%s\"\n", e.id, e.rel)
-		teams++
+	pack := kitPack{r: r, fam: buildFamilyIndex(r)}
+	result, err := pack.packTeams(entries, opts)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
 	}
-	mapBuf.WriteString("\n# end of map\n")
-	if err := os.WriteFile(filepath.Join(*out, "map.txt"), []byte(mapBuf.String()), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(opts.out, "map.txt"), []byte(result.mapText), 0644); err != nil {
 		fmt.Fprintf(os.Stderr, "write map.txt: %v\n", err)
 		os.Exit(1)
 	}
-	if teams == 0 {
+	reportKits(opts, result)
+}
+
+func reportKits(opts kitsOptions, result kitPackResult) {
+	if result.teams == 0 {
 		fmt.Fprintln(os.Stderr, "kits: no teams matched (check --leagues against map.txt league names)")
 		os.Exit(1)
 	}
-	if tex == 0 {
-		fmt.Fprintf(os.Stderr, "kits: %d teams matched but 0 textures embedded; is %s the cpk that holds these teams' textures?\n", teams, fset.Arg(0))
+	if result.textures.embedded == 0 {
+		fmt.Fprintf(os.Stderr, "kits: %d teams matched but 0 textures embedded; is %s the cpk that holds these teams' textures?\n", result.teams, opts.cpkPath)
 		os.Exit(1)
 	}
-	fmt.Fprintf(os.Stderr, "built %d teams, %d textures embedded, %d referenced-but-absent\n", teams, tex, missing)
+	fmt.Fprintf(os.Stderr, "built %d teams, %d textures embedded, %d referenced-but-absent\n", result.teams, result.textures.embedded, result.textures.missing)
+}
+
+func keepLeague(leagues []string) func(kitMapEntry) bool {
+	want := map[string]bool{}
+	for _, l := range leagues {
+		want[strings.ToLower(l)] = true
+	}
+	return func(e kitMapEntry) bool {
+		return len(want) == 0 || want[strings.ToLower(e.league)]
+	}
+}
+
+type textureCounts struct {
+	embedded int
+	missing  int
+}
+
+func (c textureCounts) add(o textureCounts) textureCounts {
+	return textureCounts{embedded: c.embedded + o.embedded, missing: c.missing + o.missing}
+}
+
+type kitPackResult struct {
+	mapText  string
+	teams    int
+	textures textureCounts
+}
+
+type kitPack struct {
+	r   *Reader
+	fam map[string][]string
+}
+
+func (p kitPack) packTeams(entries []kitMapEntry, opts kitsOptions) (kitPackResult, error) {
+	keep := keepLeague(opts.leagues)
+	var mapBuf strings.Builder
+	fmt.Fprintf(&mapBuf, "# %s\n# team-id, \"League\\Team\"\n\n", opts.label)
+	var result kitPackResult
+	for _, e := range entries {
+		if !keep(e) {
+			continue
+		}
+		packed, counts, err := p.packTeam(e, opts)
+		if err != nil {
+			return kitPackResult{}, err
+		}
+		if !packed {
+			continue
+		}
+		fmt.Fprintf(&mapBuf, "%s, \"%s\"\n", e.id, e.rel)
+		result.teams++
+		result.textures = result.textures.add(counts)
+	}
+	mapBuf.WriteString("\n# end of map\n")
+	result.mapText = mapBuf.String()
+	return result, nil
+}
+
+func (p kitPack) packTeam(e kitMapEntry, opts kitsOptions) (bool, textureCounts, error) {
+	srcTeam := filepath.Join(opts.kservSrc, e.league, e.team)
+	if fi, err := os.Stat(srcTeam); err != nil || !fi.IsDir() {
+		return false, textureCounts{}, nil
+	}
+	dstTeam := filepath.Join(opts.out, e.league, e.team)
+	if err := copyTree(srcTeam, dstTeam); err != nil {
+		return false, textureCounts{}, fmt.Errorf("copy %s: %w", e.rel, err)
+	}
+	var total textureCounts
+	err := filepath.WalkDir(dstTeam, func(path string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() || d.Name() != "config.txt" {
+			return err
+		}
+		counts, err := p.embedConfigTextures(path)
+		total = total.add(counts)
+		return err
+	})
+	if err != nil {
+		return false, textureCounts{}, fmt.Errorf("textures %s: %w", e.rel, err)
+	}
+	return true, total, nil
+}
+
+func (p kitPack) embedConfigTextures(configPath string) (textureCounts, error) {
+	names, kitFile, err := configTextures(configPath)
+	if err != nil {
+		return textureCounts{}, err
+	}
+	want := append(names, p.fam[strings.ToLower(kitFile)]...)
+	seen := map[string]bool{}
+	var total textureCounts
+	for _, n := range want {
+		key := strings.ToLower(n)
+		if n == "" || seen[key] {
+			continue
+		}
+		seen[key] = true
+		counts, err := p.embedTexture(filepath.Dir(configPath), n)
+		if err != nil {
+			return total, err
+		}
+		total = total.add(counts)
+	}
+	return total, nil
+}
+
+func (p kitPack) embedTexture(dir, name string) (textureCounts, error) {
+	f, ok := p.r.FindFile(uniformTexDir + name + ".ftex")
+	if !ok {
+		return textureCounts{missing: 1}, nil
+	}
+	data, err := p.r.ReadFile(*f)
+	if err != nil {
+		return textureCounts{missing: 1}, nil
+	}
+	if err := os.WriteFile(filepath.Join(dir, name+".ftex"), data, 0644); err != nil {
+		return textureCounts{}, err
+	}
+	return textureCounts{embedded: 1}, nil
 }

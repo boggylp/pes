@@ -18,51 +18,10 @@ type Player struct {
 // loadPlayerCSV reads a semicolon-delimited CSV with at least Id and Name columns.
 // Returns a map of ID -> name.
 func loadPlayerCSV(path string) map[string]string {
-	f, err := os.Open(path)
-	if err != nil {
-		log.Fatalf("opening CSV %s: %v", path, err)
-	}
-	defer f.Close()
-
-	// Skip UTF-8 BOM if present
-	r := skipBOM(f)
-
-	cr := csv.NewReader(r)
-	cr.Comma = ';'
-	cr.LazyQuotes = true
-
-	header, err := cr.Read()
-	if err != nil {
-		log.Fatalf("reading CSV header: %v", err)
-	}
-
-	idIdx, nameIdx := -1, -1
-	for i, col := range header {
-		switch strings.TrimSpace(col) {
-		case "Id":
-			idIdx = i
-		case "Name":
-			nameIdx = i
-		}
-	}
-	if idIdx < 0 || nameIdx < 0 {
-		log.Fatalf("CSV must have Id and Name columns, found: %v", header)
-	}
-
 	players := make(map[string]string)
-	for {
-		row, err := cr.Read()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			log.Fatalf("reading CSV row: %v", err)
-		}
-		if idIdx < len(row) && nameIdx < len(row) {
-			players[strings.TrimSpace(row[idIdx])] = strings.TrimSpace(row[nameIdx])
-		}
+	for _, p := range loadPlayerList(path) {
+		players[p.ID] = p.Name
 	}
-
 	return players
 }
 
@@ -72,19 +31,21 @@ func loadPlayerList(path string) []Player {
 	if err != nil {
 		log.Fatalf("opening CSV %s: %v", path, err)
 	}
-	defer f.Close()
+	defer closeCSVFile(f, path)
 
-	r := skipBOM(f)
-
-	cr := csv.NewReader(r)
+	cr := csv.NewReader(skipBOM(f))
 	cr.Comma = ';'
 	cr.LazyQuotes = true
 
+	idIdx, nameIdx := readPlayerHeader(cr)
+	return readPlayerRows(cr, idIdx, nameIdx)
+}
+
+func readPlayerHeader(cr *csv.Reader) (int, int) {
 	header, err := cr.Read()
 	if err != nil {
 		log.Fatalf("reading CSV header: %v", err)
 	}
-
 	idIdx, nameIdx := -1, -1
 	for i, col := range header {
 		switch strings.TrimSpace(col) {
@@ -97,12 +58,15 @@ func loadPlayerList(path string) []Player {
 	if idIdx < 0 || nameIdx < 0 {
 		log.Fatalf("CSV must have Id and Name columns, found: %v", header)
 	}
+	return idIdx, nameIdx
+}
 
+func readPlayerRows(cr *csv.Reader, idIdx, nameIdx int) []Player {
 	var players []Player
 	for {
 		row, err := cr.Read()
 		if err == io.EOF {
-			break
+			return players
 		}
 		if err != nil {
 			log.Fatalf("reading CSV row: %v", err)
@@ -114,8 +78,12 @@ func loadPlayerList(path string) []Player {
 			})
 		}
 	}
+}
 
-	return players
+func closeCSVFile(f *os.File, path string) {
+	if err := f.Close(); err != nil {
+		log.Printf("warning: closing %s: %v", path, err)
+	}
 }
 
 // loadPlayersFromFolders reads folder names as player data.
@@ -131,28 +99,31 @@ func loadPlayersFromFolders(folderPath string) []Player {
 		if !entry.IsDir() {
 			continue
 		}
-		playerName := entry.Name()
-		subdirs, err := os.ReadDir(filepath.Join(folderPath, playerName))
-		if err != nil {
-			log.Printf("warning: reading subdirs of %s: %v", playerName, err)
-			continue
-		}
-
-		var dirs []string
-		for _, sd := range subdirs {
-			if sd.IsDir() {
-				dirs = append(dirs, sd.Name())
-			}
-		}
-
-		if len(dirs) == 1 {
-			players = append(players, Player{ID: dirs[0], Name: playerName})
-		} else {
-			log.Printf("warning: skipping '%s': expected 1 subdirectory, found %d", playerName, len(dirs))
+		if p, ok := readFolderPlayer(folderPath, entry.Name()); ok {
+			players = append(players, p)
 		}
 	}
-
 	return players
+}
+
+func readFolderPlayer(folderPath, playerName string) (Player, bool) {
+	subdirs, err := os.ReadDir(filepath.Join(folderPath, playerName))
+	if err != nil {
+		log.Printf("warning: reading subdirs of %s: %v", playerName, err)
+		return Player{}, false
+	}
+
+	var dirs []string
+	for _, sd := range subdirs {
+		if sd.IsDir() {
+			dirs = append(dirs, sd.Name())
+		}
+	}
+	if len(dirs) != 1 {
+		log.Printf("warning: skipping '%s': expected 1 subdirectory, found %d", playerName, len(dirs))
+		return Player{}, false
+	}
+	return Player{ID: dirs[0], Name: playerName}, true
 }
 
 // skipBOM returns a reader that skips a UTF-8 BOM if present.
