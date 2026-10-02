@@ -1,0 +1,21 @@
+version: '2'
+
+linters:
+  enable:
+    - gocyclo
+    - gocognit
+  settings:
+    gocyclo:
+      min-complexity: 10
+    gocognit:
+      min-complexity: 10
+  exclusions:
+    rules:
+      - path: _test\.go
+        linters:
+          - gocyclo
+          - gocognit
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
