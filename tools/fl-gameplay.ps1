@@ -142,7 +142,7 @@ function Get-TrackingLines {
 function Get-GameplaySiderLines {
     param([string]$SiderPath)
 
-    $pattern = '(?i)(gameplay|sse|sok|dynamic_difficulty|rng_overhaul|aoba|ai_tweaks|anti-cheat|speedserver2|attacking_mentality|attack_mentality|stamina|noscript|matchset|crow|anima)'
+    $pattern = '(?i)(gameplay|sse|sok|dynamic_difficulty|rng_overhaul|aoba|ai_tweaks|anti-cheat|speedserver2|attacking_mentality|attack_mentality|stamina|noscript|matchset|crow|anima|tfse)'
 
     Get-Content $SiderPath | Where-Object {
         $_ -match '^\s*(cpk\.root|lua\.module)\s*=' -and $_ -match $pattern
