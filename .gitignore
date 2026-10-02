@@ -2,10 +2,55 @@
 __pycache__/
 *.py[cod]
 .venv/
-*.egg-info/
+.ruff_cache/
+.pytest_cache/
 
 # Go
+*.test
+*.out
+
+# .NET
+bin/
+obj/
+.vs/
+*.user
+
+# TypeScript and Node
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+.vite/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Agents
+.pi/
+.pi-subagents/
+.claude/*
+!.claude/skills/
+**/.claude/settings.local.json
+
+# Editors and OS
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store
+
+# Logs
+*.log
+
+# Repo
+*.egg-info/
 *.exe
+.env
+data/
+work/
+
+# Auto-fetched tool binaries
+tools/bin/
 
 # PES game assets
 result/
@@ -16,24 +61,3 @@ result/
 *.db
 *.7z
 livecpk/
-
-# Auto-fetched tool binaries
-tools/bin/
-
-# Editor/IDE
-.idea/
-.vscode/
-
-# Scraped data cache
-data/
-
-# Pi artifacts
-.pi/
-.pi-subagents/
-
-# Env
-.env
-
-.claude/*
-!.claude/skills/
-work/
