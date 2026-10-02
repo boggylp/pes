@@ -8,25 +8,22 @@ This repository contains independent PES tools and live-install workflows.
 
 - Run `make all` in each changed tool directory before a commit.
 - When restructuring documentation, preserve game and domain knowledge in its current owner or move it to another durable owner.
-- Use the install path that the user gives. Search elsewhere only when that path fails or the user asks.
+- Use the install path the user gives, and search elsewhere only when it fails or the user asks.
 - Read the live install's `AGENTS.md` and `README.md` before a live-install task.
-- Use `pes-evoweb-research` for PES or Football Life community research. Check the memory wiki before external research.
-- Use `pes-gameplay-status` before conclusions about active gameplay.
+- Use `pes-evoweb-research` for PES or Football Life community research.
+- Load `pes-gameplay-status` before a conclusion about active gameplay or a gameplay switch.
 - Identify gameplay files by hash, not by filename.
 - Get explicit approval for each gameplay or configuration change to a live install.
-- Inventory the full gameplay stack before a switch. Include dt13, dt18, gameplay livecpk roots, gameplay `lua.module` entries, the executable, hooks, and cache state.
-- Verify each gameplay-stack component from active files or the mod instructions.
-- Apply the complete requested gameplay stack. Do not leave an unrequested mixed state.
-- Treat a dt18 and a livecpk carrying the same constant bins as one pair. Never report their load order as a conflict or either one as inert.
-- Restore a replaced gameplay file from the gameplay archive. Never copy one to a backup path unless the user asks.
+- Apply the complete requested gameplay stack, with no unrequested layer left mixed in.
+- Treat a dt18 and a livecpk carrying the same constant bins as one pair, never as a load-order conflict or an inert layer.
+- Restore a replaced gameplay file from the gameplay archive, and make a gameplay backup only when the user asks.
 - Never propose, mention, or perform deletion of `SYSTEM00000000` until an automated clear-cache and settings-reapply tool exists.
 - Store gameplay archives under `%USERPROFILE%\MEGA\gaming\pes\gameplay\`.
-- Replace downloadable gameplay archives without a backup unless the user asks.
 - Name stored gameplay archives without whitespace: separate major parts with `_` and words within a part with `-`.
 - Store EDIT-save and SYSTEM-cache backups under `%USERPROFILE%\MEGA\gaming\pes\edit\saves\`.
-- Name save backups `fl26-<savetype>_fl26-<version>_<machine>_<YYYY-MM-DD>`. Build `<version>` from the patch name and executable `FileVersion`.
-- Use the active live database for player and face work. Do not use the sample CSV files for a live install.
-- Use texture aliasing when source and destination player IDs have different lengths. Do not byte-rewrite the FMDL path.
+- Name save backups `fl26-<savetype>_fl26-<version>_<machine>_<YYYY-MM-DD>`, with `<version>` built from the patch name and executable `FileVersion`.
+- Use the active live database for player and face work, never the sample CSV files.
+- Use texture aliasing, never an FMDL byte rewrite, when source and destination player IDs differ in length.
 
 ## Domain language
 

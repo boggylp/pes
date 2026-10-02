@@ -11,10 +11,8 @@ metadata:
 ## Steps
 
 1. Search `~/memory/priv/wiki/pes/` for an existing answer.
-
-2. Check the date of the relevant files under `evoweb/data/`. Rescrape the forum listing and active threads for a what-is-new question. Rescrape other data when it is more than one week old.
-
-3. Save each scrape to a dated JSON file.
+2. Rescrape the forum listing and active threads for a what-is-new question, and any other scrape under `evoweb/data/` older than one week.
+3. Save each scrape to a dated JSON file under `evoweb/data/`.
 
    ```sh
    cd evoweb
@@ -23,7 +21,8 @@ metadata:
    go run . forum --output data/<forum>-$(date +%Y-%m-%d).json "<forum-url>"
    ```
 
-   Run `go run . login` once when stored credentials are absent. The tool reads `~/.secrets/evoweb/credentials`.
+   - When stored credentials are absent, run `go run . login` once.
+   - Use `--cookie` only to diagnose login behavior.
 
 4. Query the nested `posts` array with DuckDB.
 
@@ -31,27 +30,13 @@ metadata:
    duckdb -c "SELECT p.author, p.date, p.content FROM (SELECT unnest(posts) AS p FROM read_json('evoweb/data/<file>.json')) WHERE p.content LIKE '%<keyword>%' ORDER BY p.date DESC LIMIT 20;"
    ```
 
-5. Retrieve an attachment URL with the authenticated browser profile because scrape JSON omits attachment links. Download the URL with the stored Evoweb session.
+5. Scrape JSON omits attachment links, so take an attachment URL from the authenticated browser profile and download it with the stored session.
 
    ```sh
    go run . download --output <file> "https://evoweb.uk/attachments/<name>.<id>/"
    ```
 
-6. Cross-check release claims against the original post and independent replies. Mark unsupported claims as `**Not verified**`.
-
-7. Cite the thread URL, post date, and author in the answer.
-
-8. Use `pes-wiki-log` when the finding is durable.
-
-## Review
-
-- Answer from gathered evidence. Do not send the user to search the thread.
-- Keep scrape files under the ignored `evoweb/data/` directory.
-- Use stored credentials for routine work. Use cookie overrides only to diagnose login behavior.
-- Stop when current source evidence is unavailable. State which source could not be refreshed.
-
-## Boundaries
-
-- Use `pes-gameplay-status` for live-install state.
-- Use `pes-gameplay-set` for a gameplay change.
-- Use `pes-wiki-log` to write the durable finding.
+6. Cross-check each release claim against the original post and independent replies, and mark an unsupported one `**Not verified**`.
+7. Answer from the gathered evidence, citing thread URL, post date, and author.
+8. When a source cannot be refreshed, stop and name it.
+9. Load `pes-wiki-log` when the finding is durable.

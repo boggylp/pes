@@ -9,54 +9,37 @@ metadata:
 
 # PES ReShade
 
-## Steps
+The **match path** is the user's normal route from team selection into a match. Startup and shader compilation alone do not verify it.
 
-1. Read the preset instructions.
+## Prepare
 
-2. Read the current official ReShade installer documentation or source.
+1. Read the preset instructions and the current official ReShade installer documentation or source.
+2. Resolve each shader in the preset's active `Techniques` list to its source repository.
+3. Target the game executable, not its launcher.
+4. Ask the user to close the game and Sider, and stop no other process.
+5. Record versions and hashes of the executable, hook DLLs, `ReShade.ini`, preset, and `reshade-shaders`.
+6. Archive them through `mem-artifact`, and record the official headless uninstall command and the custom files it leaves behind.
 
-3. Extract the preset's active `Techniques` list. Resolve each active shader to its source repository.
+## Install
 
-4. Use the user-provided game root. Read its `AGENTS.md` and `README.md` when present.
+1. Download the current official stable installer, and verify its signer and product version.
+2. Select DirectX 10, 11, or 12, which installs the DXGI hook.
+3. Prefer interactive setup with the preset selected.
+   - Headless, install the active shaders, includes, and textures from their source repositories.
+4. Set the preset path, enable performance mode, skip disabled effects, keep Home for the overlay, and bind an unused effects-toggle key.
+5. Treat the setup package and the per-game runtime as separate.
+   - Uninstall a stale setup package only with approval, then confirm the hook, configuration, shaders, and preset are unchanged.
 
-5. Select the game executable, not its launcher.
+## Verify
 
-6. Ask the user to close the game and Sider before changing ReShade files. Do not stop unrelated processes.
+1. Ask the user to run the match path with effects off, and stop when the game exits.
+2. Enable the preset, and confirm every active shader compiles in `ReShade.log`.
+3. Ask the user to run the match path again, then compare effects on and off in one scene.
+4. Confirm the executable hash is unchanged and the toggle changes the image.
+5. Report the measured cost, and disable the expensive effects first when frame time rises.
 
-7. Record versions and hashes for the game executable, hook DLLs, `ReShade.ini`, preset, and `reshade-shaders` directory.
+## Isolate a crash
 
-8. Create a rollback archive with `mem-backup`. Record the official headless uninstall command and custom files that it does not remove.
-
-9. Download the current official installer. Verify its signer and product version against the advertised release.
-
-10. Select DirectX 10, 11, or 12 for PES 2021 and Football Life. This installs the DXGI hook.
-
-11. Prefer interactive setup with the preset selected. For headless setup, install active shaders, includes, and textures from their source repositories.
-
-12. Set the preset path. Enable performance mode. Skip disabled effects. Keep Home for the overlay and assign an unused effects-toggle key.
-
-13. Ask the user to launch with effects disabled and repeat the normal team-selection-to-match path. Stop when the game exits.
-
-14. Enable the preset. Confirm that every active shader compiles in `ReShade.log`.
-
-15. Ask the user to repeat the same path. Compare effects on and off in the same scene. Read the resulting logs and measurements.
-
-16. For crash isolation, disable only the ReShade hook and repeat the same path. Then test the runtime without effects and with the preset. Change one variable per run.
-
-17. Capture `ReShade.log`, `SiderAddons/sider.log`, and the Windows Application event before the next change.
-
-## Review
-
-- Confirm that the hook version is the current official stable release.
-- Confirm that the game executable hash is unchanged.
-- Confirm that every active technique compiles.
-- Confirm that the team-selection-to-match path passes with the hook and preset enabled.
-- Confirm that the effects toggle changes the image.
-- Report the measured performance cost.
-
-## Boundaries
-
-- Treat the setup package and per-game runtime as separate. Uninstall a stale setup package only with user approval, then verify that the installed hook, configuration, shaders, and preset remain unchanged.
-- Treat startup and shader compilation as partial checks, not match-load verification.
-- Keep stadium light files and lookup-table roots unchanged during ReShade isolation.
-- Disable expensive effects first when frame time increases.
+- Change one variable per run: hook disabled, then runtime without effects, then the preset.
+- Keep stadium light files and lookup-table roots unchanged.
+- Capture `ReShade.log`, `SiderAddons/sider.log`, and the Windows Application event before the next change.
